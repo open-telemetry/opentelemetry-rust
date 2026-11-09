@@ -2,6 +2,9 @@
 
 ## vNext
 
+- Treat wasm64 like wasm32: the blocking and native HTTP
+  clients are now excluded on every wasm target.
+
 ## 0.33.1
 
 Released 2026-Oct-08

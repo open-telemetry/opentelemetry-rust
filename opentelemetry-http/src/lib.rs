@@ -213,7 +213,7 @@ mod reqwest {
         }
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(not(target_family = "wasm"))]
     #[cfg(feature = "reqwest-blocking")]
     #[async_trait]
     impl HttpClient for reqwest::blocking::Client {
@@ -401,19 +401,19 @@ mod tests {
 
     #[cfg(all(
         any(feature = "hyper", feature = "reqwest", feature = "reqwest-blocking"),
-        not(target_arch = "wasm32")
+        not(target_family = "wasm")
     ))]
     use std::io::{Read, Write};
 
     #[cfg(all(
         any(feature = "hyper", feature = "reqwest", feature = "reqwest-blocking"),
-        not(target_arch = "wasm32")
+        not(target_family = "wasm")
     ))]
     use std::net::{SocketAddr, TcpListener};
 
     #[cfg(all(
         any(feature = "hyper", feature = "reqwest", feature = "reqwest-blocking"),
-        not(target_arch = "wasm32")
+        not(target_family = "wasm")
     ))]
     use std::thread::JoinHandle;
 
@@ -535,7 +535,7 @@ mod tests {
 
     #[cfg(all(
         any(feature = "hyper", feature = "reqwest", feature = "reqwest-blocking"),
-        not(target_arch = "wasm32")
+        not(target_family = "wasm")
     ))]
     fn spawn_error_response_server() -> (SocketAddr, JoinHandle<()>) {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
@@ -556,7 +556,7 @@ Connection: close\r\n\r\n",
         (address, server)
     }
 
-    #[cfg(all(feature = "reqwest-blocking", not(target_arch = "wasm32")))]
+    #[cfg(all(feature = "reqwest-blocking", not(target_family = "wasm")))]
     #[test]
     fn reqwest_blocking_preserves_error_response_status_and_headers() {
         let (address, server) = spawn_error_response_server();
@@ -571,7 +571,7 @@ Connection: close\r\n\r\n",
         assert_eq!(response.headers().get("retry-after").unwrap(), "7");
     }
 
-    #[cfg(all(feature = "reqwest", not(target_arch = "wasm32")))]
+    #[cfg(all(feature = "reqwest", not(target_family = "wasm")))]
     #[test]
     fn reqwest_async_preserves_error_response_status_and_headers() {
         let (address, server) = spawn_error_response_server();
@@ -590,7 +590,7 @@ Connection: close\r\n\r\n",
         assert_eq!(response.headers().get("retry-after").unwrap(), "7");
     }
 
-    #[cfg(all(feature = "hyper", not(target_arch = "wasm32")))]
+    #[cfg(all(feature = "hyper", not(target_family = "wasm")))]
     #[test]
     fn hyper_preserves_error_response_status_and_headers() {
         let (address, server) = spawn_error_response_server();
