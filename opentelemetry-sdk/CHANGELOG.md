@@ -31,6 +31,11 @@
 - Fixed `BatchSpanProcessor` and `BatchLogProcessor` shutdown reporting success
   when exporting the final queued telemetry failed.
   ([#3793](https://github.com/open-telemetry/opentelemetry-rust/issues/3793))
+- Fixed concurrent `SimpleSpanProcessor` and `SimpleLogProcessor` shutdown so an
+  operation that observed the processor before shutdown cannot reach the exporter
+  after exporter shutdown has completed. Repeated or concurrent shutdown calls now
+  shut the exporter down exactly once; later callers receive `AlreadyShutdown`.
+  ([#3835](https://github.com/open-telemetry/opentelemetry-rust/pull/3835))
 - Fixed `SdkTracer` to accept parent span contexts with valid trace id but invalid
   span id on span creation.
   ([#3790](https://github.com/open-telemetry/opentelemetry-rust/pull/3790))
