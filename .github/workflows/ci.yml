@@ -133,6 +133,7 @@ jobs:
     strategy:
       matrix:
         os: [windows-latest, ubuntu-latest]
+        class: [core, sdk]
     runs-on: ${{ matrix.os }}
     continue-on-error: true
     steps:
@@ -153,8 +154,8 @@ jobs:
       - uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Check MSRV for all crates
-        run: bash ./scripts/msrv.sh
+      - name: Check ${{ matrix.class }} MSRV class
+        run: bash ./scripts/msrv.sh ${{ matrix.class }}
   cargo-deny:
     runs-on: ubuntu-latest # This uses the step `EmbarkStudios/cargo-deny-action@v1` which is only supported on Linux
     continue-on-error: true # Prevent sudden announcement of a new advisory from failing ci
