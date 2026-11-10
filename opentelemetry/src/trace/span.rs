@@ -71,7 +71,12 @@ pub trait Span {
     /// If this span is not being recorded then this method does nothing.
     fn record_error(&mut self, err: &dyn Error) {
         if self.is_recording() {
-            let attributes = vec![KeyValue::new("exception.message", err.to_string())];
+            let message = err.to_string();
+            let mut attributes = Vec::with_capacity(2);
+            if let Some(stacktrace) = format_error_sources(err, &message) {
+                attributes.push(KeyValue::new("exception.stacktrace", stacktrace));
+            }
+            attributes.push(KeyValue::new("exception.message", message));
             self.add_event("exception", attributes);
         }
     }
@@ -317,13 +322,139 @@ impl Status {
     }
 }
 
+/// Format [`Error::source`]s into an 'error source chain' for use in the `exception.stacktrace`
+/// field of an exception event.
+///
+/// See: <https://opentelemetry.io/docs/specs/semconv/registry/attributes/exception/#exception-stacktrace>
+///
+/// Error messages are output one per line, like this:
+///
+/// ```text
+/// My error message
+/// IO Error (123)
+/// Inner-most error message
+/// ```
+fn format_error_sources(error: &dyn Error, message: &str) -> Option<String> {
+    error.source().map(|source| {
+        let mut stacktrace = message.to_owned();
+
+        for source in SourceIter::new(source) {
+            stacktrace.push('\n');
+            stacktrace.push_str(&source.to_string());
+        }
+
+        stacktrace
+    })
+}
+
+/// [`Iterator`] over [`std::error::Error::source`] chains.
+///
+/// See: <https://github.com/rust-lang/rust/issues/58520>
+struct SourceIter<'a> {
+    current: Option<&'a (dyn Error + 'static)>,
+}
+
+impl<'a> SourceIter<'a> {
+    /// Create a new iterator over the error and its sources.
+    ///
+    /// The first value returned by the iterator is the given `error`.
+    fn new(error: &'a (dyn Error + 'static)) -> Self {
+        Self {
+            current: Some(error),
+        }
+    }
+}
+
+impl<'a> Iterator for SourceIter<'a> {
+    type Item = &'a (dyn Error + 'static);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let current = self.current;
+        self.current = self.current.and_then(Error::source);
+        current
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fmt;
 
     #[test]
     fn status_order() {
         assert!(Status::Ok > Status::error(""));
         assert!(Status::error("") > Status::Unset);
+    }
+
+    /// A simple error that optionally wraps a `source`, for testing
+    /// [`format_error_sources`].
+    #[derive(Debug)]
+    struct TestError {
+        message: &'static str,
+        source: Option<Box<TestError>>,
+    }
+
+    impl TestError {
+        fn new(message: &'static str) -> Self {
+            Self {
+                message,
+                source: None,
+            }
+        }
+
+        fn with_source(message: &'static str, source: TestError) -> Self {
+            Self {
+                message,
+                source: Some(Box::new(source)),
+            }
+        }
+    }
+
+    impl fmt::Display for TestError {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            f.write_str(self.message)
+        }
+    }
+
+    impl Error for TestError {
+        fn source(&self) -> Option<&(dyn Error + 'static)> {
+            self.source
+                .as_ref()
+                .map(|source| source.as_ref() as &(dyn Error + 'static))
+        }
+    }
+
+    #[test]
+    fn format_error_sources_without_source() {
+        let error = TestError::new("top-level error");
+        assert_eq!(
+            format_error_sources(&error, &error.to_string()),
+            None,
+            "an error with no source should not produce a stacktrace"
+        );
+    }
+
+    #[test]
+    fn format_error_sources_with_single_source() {
+        let error = TestError::with_source("top-level error", TestError::new("inner error"));
+        assert_eq!(
+            format_error_sources(&error, &error.to_string()).as_deref(),
+            Some("top-level error\ninner error"),
+        );
+    }
+
+    #[test]
+    fn format_error_sources_with_chain() {
+        let error = TestError::with_source(
+            "top-level error",
+            TestError::with_source(
+                "middle error",
+                TestError::with_source("inner error", TestError::new("root cause")),
+            ),
+        );
+        assert_eq!(
+            format_error_sources(&error, &error.to_string()).as_deref(),
+            Some("top-level error\nmiddle error\ninner error\nroot cause"),
+        );
     }
 }
