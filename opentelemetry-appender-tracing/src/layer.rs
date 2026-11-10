@@ -179,6 +179,22 @@ impl<LR: LogRecord> tracing::field::Visit for EventVisitor<'_, LR> {
         }
     }
 
+    #[cfg(all(tracing_unstable, feature = "valuable"))]
+    fn record_value(&mut self, field: &tracing::field::Field, value: valuable::Value<'_>) {
+        #[cfg(feature = "experimental_metadata_attributes")]
+        if is_duplicated_metadata(field.name()) {
+            return;
+        }
+        let Some(value) = crate::valuable::to_any_value(value) else {
+            return;
+        };
+        if field.name() == "message" {
+            self.log_record.set_body(value);
+        } else {
+            self.log_record.add_attribute(Key::new(field.name()), value);
+        }
+    }
+
     // TODO: Remaining field types from AnyValue : Bytes, ListAny, Boolean
 }
 
@@ -291,6 +307,14 @@ impl tracing::field::Visit for SpanFieldVisitor<'_> {
             } else {
                 self.attributes
                     .push((Key::from(field.name()), AnyValue::from(format!("{value}"))));
+            }
+        }
+    }
+    #[cfg(all(tracing_unstable, feature = "valuable"))]
+    fn record_value(&mut self, field: &tracing::field::Field, value: valuable::Value<'_>) {
+        if self.allowed(field) {
+            if let Some(value) = crate::valuable::to_any_value(value) {
+                self.attributes.push((Key::from(field.name()), value));
             }
         }
     }
@@ -1770,5 +1794,60 @@ mod tests {
             .record
             .attributes_iter()
             .any(|(k, _)| k == &Key::new("session.id")));
+    }
+
+    #[cfg(all(tracing_unstable, feature = "valuable"))]
+    #[test]
+    fn tracing_appender_valuable_fields() {
+        use valuable::Valuable;
+
+        #[derive(Valuable)]
+        struct Payload {
+            id: u32,
+            tags: Vec<&'static str>,
+        }
+
+        // Arrange
+        let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
+        let logger_provider = SdkLoggerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
+        let subscriber = create_tracing_subscriber(&logger_provider);
+        let _guard = tracing::subscriber::set_default(subscriber);
+
+        // Act
+        let payload = Payload {
+            id: 7,
+            tags: vec!["a", "b"],
+        };
+        error!(payload = payload.as_value(), "valuable event");
+        assert!(logger_provider.force_flush().is_ok());
+
+        // Assert
+        let exported_logs = exporter
+            .get_emitted_logs()
+            .expect("Logs are expected to be exported.");
+        let log = exported_logs
+            .first()
+            .expect("Atleast one log is expected to be present.");
+        let expected = AnyValue::Map(Box::new(
+            [
+                (Key::new("id"), AnyValue::Int(7)),
+                (
+                    Key::new("tags"),
+                    AnyValue::ListAny(Box::new(vec![
+                        AnyValue::String("a".into()),
+                        AnyValue::String("b".into()),
+                    ])),
+                ),
+            ]
+            .into_iter()
+            .collect(),
+        ));
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("payload"),
+            &expected
+        ));
     }
 }

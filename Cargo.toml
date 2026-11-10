@@ -54,6 +54,7 @@ tracing = { version = ">=0.1.40", default-features = false }
 tracing-core = { version = ">=0.1.33", default-features = false }
 tracing-subscriber = { version = "0.3", default-features = false }
 url = { version = "2.5", default-features = false }
+valuable = { version = "0.1", default-features = false }
 anyhow = "1.0.94"
 base64 = "0.22.1"
 chrono = { version = "0.4.34", default-features = false }
@@ -95,6 +96,8 @@ rust_2024_compatibility = { level = "warn", priority = -1 }
 edition_2024_expr_fragment_specifier = "allow"
 if_let_rescope = "allow"
 tail_expr_drop_order = "allow"
+# `tracing_unstable` is required by `tracing` to expose `valuable` support
+unexpected_cfgs = { level = "warn", check-cfg = ["cfg(tracing_unstable)"] }
 
 [workspace.lints.clippy]
 all = { level = "warn", priority = 1 }

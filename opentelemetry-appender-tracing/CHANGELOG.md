@@ -2,6 +2,12 @@
 
 ## vNext
 
+- Add experimental support for recording [`valuable`](https://docs.rs/valuable)
+  fields as structured `AnyValue`s (`Map`, `ListAny`, ...) instead of their
+  `Debug` representation. Gated behind the `valuable` feature and
+  requires building with `RUSTFLAGS="--cfg tracing_unstable"`.
+  [#2819](https://github.com/open-telemetry/opentelemetry-rust/issues/2819)
+
 - Fixes [#3543](https://github.com/open-telemetry/opentelemetry-rust/issues/3543):
   Event metadata is now always normalized when `experimental_metadata_attributes` 
   is enabled. In particular, when using the feature the underlying OTEL logger
