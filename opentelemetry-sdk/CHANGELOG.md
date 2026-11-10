@@ -78,6 +78,10 @@
   - The 64 entry limit is enforced by the propagator instead of `Baggage`.
     Only entries that are actually injected count towards it.
   - Internal logs no longer include the baggage header content.
+- Fixed `BatchSpanProcessor` exporting spans that were recorded but not sampled
+  (e.g. `SamplingDecision::RecordOnly`). It now drops them in `on_end`, matching
+  `SimpleSpanProcessor` and the specification.
+  ([#3812](https://github.com/open-telemetry/opentelemetry-rust/issues/3812))
 
 ## 0.33.1
 
