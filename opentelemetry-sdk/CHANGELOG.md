@@ -2,6 +2,9 @@
 
 ## vNext
 
+- Added `sum_if_recorded` accessors to histogram data points so exporters can
+  distinguish an unrecorded sum from a recorded zero.
+  ([#3804](https://github.com/open-telemetry/opentelemetry-rust/issues/3804))
 - Improved metrics measurement performance by speeding up attribute set
   lookups (faster `KeyValue` equality and boxed attribute keys).
   ([#3787](https://github.com/open-telemetry/opentelemetry-rust/pull/3787))
