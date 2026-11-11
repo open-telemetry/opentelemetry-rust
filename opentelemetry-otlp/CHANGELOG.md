@@ -2,6 +2,10 @@
 
 ## vNext
 
+- Add `WithTonicConfig::with_max_encoding_message_size` and
+  `with_max_decoding_message_size` to configure gRPC request and response size
+  limits for trace, metric, and log exporters, including custom channels.
+
 - Update `zstd` dependency version to 0.14.3, which addresses
   [RUSTSEC-2026-0391](https://rustsec.org/advisories/RUSTSEC-2026-0391).
   The `zstd-http` feature does not use the affected functions.
