@@ -128,7 +128,6 @@ fn main() {
         duration, repeats, max_workers
     );
 
-    // 1. Recording spans (AlwaysOn, no processor)
     let provider_rec = SdkTracerProvider::builder()
         .with_sampler(Sampler::AlwaysOn)
         .build();
@@ -141,7 +140,6 @@ fn main() {
         repeats,
     );
 
-    // 2. Non-recording spans (AlwaysOff, no processor)
     let provider_non_rec = SdkTracerProvider::builder()
         .with_sampler(Sampler::AlwaysOff)
         .build();
@@ -154,7 +152,6 @@ fn main() {
         repeats,
     );
 
-    // 3. Non-recording spans via telemetry suppression
     let provider_suppressed = SdkTracerProvider::builder().build();
     let tracer_suppressed = provider_suppressed.tracer("trace-scaling-suppressed");
     let suppressed_cx = Context::new().with_telemetry_suppressed();
@@ -169,7 +166,6 @@ fn main() {
         },
     );
 
-    // 4. Realistic recording spans (SimpleSpanProcessor + VoidExporter)
     let provider_realistic = SdkTracerProvider::builder()
         .with_sampler(Sampler::AlwaysOn)
         .with_span_processor(SimpleSpanProcessor::new(VoidExporter))
@@ -183,7 +179,6 @@ fn main() {
         repeats,
     );
 
-    // 5. Mixed 50% Recording / 50% Non-recording (TraceIdRatioBased(0.50))
     let provider_mixed_50 = SdkTracerProvider::builder()
         .with_sampler(Sampler::TraceIdRatioBased(0.50))
         .build();
@@ -196,7 +191,6 @@ fn main() {
         repeats,
     );
 
-    // 6. Populated Scope Spans (AlwaysOff, 5 scope attributes)
     let provider_populated = SdkTracerProvider::builder()
         .with_sampler(Sampler::AlwaysOff)
         .build();

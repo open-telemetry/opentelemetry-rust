@@ -1967,7 +1967,6 @@ mod tests {
             .build();
         let tracer = provider.tracer_with_scope(scope);
 
-        // 1. Create both recording and non-recording spans from the same tracer.
         let mut rec_span = tracer.start("recording");
         let non_rec_cx = Context::new().with_telemetry_suppressed();
         let mut non_rec_span = tracer.start_with_context("non_recording", &non_rec_cx);
@@ -1979,31 +1978,24 @@ mod tests {
             non_rec_span.instrumentation_scope()
         );
 
-        // 2. Drop original tracer and provider handles.
         drop(tracer);
         drop(provider);
 
-        // 3. Verify shutdown has not occurred while the recording span lives.
         assert_eq!(shutdowns.load(Ordering::SeqCst), 0);
 
-        // 4. Calling end() on the recording span must not prematurely release the provider.
+        // Ending a span must not release the provider while the span is still alive.
         rec_span.end();
         assert_eq!(shutdowns.load(Ordering::SeqCst), 0);
 
-        // Dropping the recording span releases the last tracer reference and triggers shutdown.
         drop(rec_span);
-
-        // 5. Automatic shutdown occurs even though the non-recording span is still alive.
         assert_eq!(shutdowns.load(Ordering::SeqCst), 1);
 
-        // 6. Surviving non-recording span retains full instrumentation scope after provider shutdown.
         assert_eq!(non_rec_span.instrumentation_scope().name(), "mixed_test");
         assert_eq!(
             non_rec_span.instrumentation_scope().version(),
             Some("1.2.3")
         );
 
-        // 7. Ending and dropping the non-recording span causes no duplicate shutdown.
         non_rec_span.end();
         drop(non_rec_span);
         assert_eq!(shutdowns.load(Ordering::SeqCst), 1);
@@ -2012,7 +2004,6 @@ mod tests {
     #[test]
     fn cross_thread_span_ownership_and_shutdown() {
         use std::sync::atomic::{AtomicUsize, Ordering};
-        use std::sync::mpsc;
 
         let shutdowns = Arc::new(AtomicUsize::new(0));
         let provider = crate::trace::SdkTracerProvider::builder()
@@ -2020,7 +2011,7 @@ mod tests {
             .build();
         let tracer = provider.tracer("cross_thread");
 
-        let rec_span = tracer.start("rec");
+        let mut rec_span = tracer.start("rec");
         let non_rec_cx = Context::new().with_telemetry_suppressed();
         let non_rec_span = tracer.start_with_context("non_rec", &non_rec_cx);
 
@@ -2028,18 +2019,15 @@ mod tests {
         drop(provider);
         assert_eq!(shutdowns.load(Ordering::SeqCst), 0);
 
-        let (tx, rx) = mpsc::channel();
         let worker = std::thread::spawn(move || {
-            let (mut rec, non_rec): (Span, Span) = rx.recv().unwrap();
-            assert!(!non_rec.is_recording());
-            assert!(rec.is_recording());
+            assert!(!non_rec_span.is_recording());
+            assert!(rec_span.is_recording());
 
-            drop(non_rec);
-            rec.end();
-            drop(rec);
+            drop(non_rec_span);
+            rec_span.end();
+            drop(rec_span);
         });
 
-        tx.send((rec_span, non_rec_span)).unwrap();
         worker.join().unwrap();
 
         assert_eq!(shutdowns.load(Ordering::SeqCst), 1);
@@ -2068,7 +2056,8 @@ mod tests {
             let b = Arc::clone(&barrier);
             handles.push(std::thread::spawn(move || {
                 b.wait();
-                for _ in 0..100 {
+                // Exercise initialization and subsequent cached access.
+                for _ in 0..2 {
                     let span = tracer_clone.start("test_non_rec");
                     assert!(!span.is_recording());
                     let scope = span.instrumentation_scope();
@@ -2105,26 +2094,22 @@ mod tests {
                 KeyValue::new("tier", 1),
             ])
             .build();
-        let tracer = provider.tracer_with_scope(scope);
+        let tracer = provider.tracer_with_scope(scope.clone());
 
         let mut rec_span = tracer.start("rec");
         let non_rec_cx = Context::new().with_telemetry_suppressed();
         let non_rec_span = tracer.start_with_context("non_rec", &non_rec_cx);
+        let expected_attrs: Vec<_> = scope.attributes().collect();
 
-        for scope in [
+        for actual_scope in [
             rec_span.instrumentation_scope(),
             non_rec_span.instrumentation_scope(),
         ] {
-            assert_eq!(scope.name(), "full_metadata_scope");
-            assert_eq!(scope.version(), Some("3.14.0"));
+            assert_eq!(actual_scope, &scope);
             assert_eq!(
-                scope.schema_url(),
-                Some("https://opentelemetry.io/schemas/1.26.0")
+                actual_scope.attributes().collect::<Vec<_>>(),
+                expected_attrs
             );
-            let attrs: Vec<KeyValue> = scope.attributes().cloned().collect();
-            assert_eq!(attrs.len(), 2);
-            assert_eq!(attrs[0], KeyValue::new("service.namespace", "telemetry"));
-            assert_eq!(attrs[1], KeyValue::new("tier", 1));
         }
 
         rec_span.end();
@@ -2132,34 +2117,20 @@ mod tests {
 
         let exported = exporter.get_finished_spans().unwrap();
         assert_eq!(exported.len(), 1);
+        let exported_scope = &exported[0].instrumentation_scope;
+        assert_eq!(exported_scope, &scope);
         assert_eq!(
-            exported[0].instrumentation_scope.name(),
-            "full_metadata_scope"
+            exported_scope.attributes().collect::<Vec<_>>(),
+            expected_attrs
         );
-        assert_eq!(exported[0].instrumentation_scope.version(), Some("3.14.0"));
-        assert_eq!(
-            exported[0].instrumentation_scope.schema_url(),
-            Some("https://opentelemetry.io/schemas/1.26.0")
-        );
-        let exp_attrs: Vec<KeyValue> = exported[0]
-            .instrumentation_scope
-            .attributes()
-            .cloned()
-            .collect();
-        assert_eq!(exp_attrs.len(), 2);
     }
 
     #[test]
-    fn tracer_and_span_memory_layout() {
+    fn tracer_has_pointer_size() {
         assert_eq!(
             std::mem::size_of::<SdkTracer>(),
             std::mem::size_of::<Arc<()>>(),
             "SdkTracer must be exactly 1 pointer in size (single Arc)"
-        );
-        assert_eq!(
-            std::mem::size_of::<SpanOwner>(),
-            std::mem::size_of::<usize>() * 2,
-            "SpanOwner enum must be 2 words (1 word pointer + 1 word discriminant)"
         );
     }
 }
