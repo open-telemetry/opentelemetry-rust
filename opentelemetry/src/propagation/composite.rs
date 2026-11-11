@@ -146,7 +146,14 @@ mod tests {
             let span_context = span.span_context();
             match self.header {
                 "span-id" => injector.set(self.header, format!("{:x}", span_context.span_id())),
-                "baggage" => injector.set(self.header, cx.baggage().to_string()),
+                "baggage" => injector.set(
+                    self.header,
+                    cx.baggage()
+                        .iter()
+                        .map(|(k, (v, _))| format!("{k}={v}"))
+                        .collect::<Vec<_>>()
+                        .join(","),
+                ),
                 _ => {}
             }
         }
@@ -248,7 +255,11 @@ mod tests {
                 TraceState::default(),
             )
         );
-        assert_eq!(cx.baggage().to_string(), "baggagekey=value",);
+        assert_eq!(cx.baggage().len(), 1);
+        assert_eq!(
+            cx.baggage().get("baggagekey").map(|v| v.as_str()),
+            Some("value")
+        );
     }
 
     #[test]
