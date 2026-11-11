@@ -7,6 +7,10 @@
 //!
 #![cfg(unix)]
 
+#[cfg(any(feature = "tonic-client", feature = "reqwest-blocking-client"))]
+#[path = "common/metric_counter.rs"]
+mod metric_counter;
+
 use anyhow::{Ok, Result};
 use ctor::dtor;
 use integration_test_runner::test_utils;
@@ -20,6 +24,7 @@ const SLEEP_DURATION: Duration = Duration::from_secs(5);
 #[cfg(any(feature = "tonic-client", feature = "reqwest-blocking-client"))]
 mod metrictests {
     use super::*;
+    use crate::metric_counter::test_counter;
     use integration_test_runner::metric_helpers::{
         assert_metrics_results_contains, setup_metrics_non_tokio, setup_metrics_tokio,
     };
@@ -54,12 +59,8 @@ mod metrictests {
     async fn metric_helper_tokio_current() -> Result<()> {
         let meter_provider = setup_metrics_tokio().await;
 
-        const METER_NAME: &str = "test_meter";
-        const INSTRUMENT_NAME: &str = "test_counter";
-
-        let meter = opentelemetry::global::meter_provider().meter(METER_NAME);
         let expected_uuid = Uuid::new_v4().to_string();
-        let counter = meter.u64_counter(INSTRUMENT_NAME).build();
+        let counter = test_counter(&meter_provider);
         counter.add(
             10,
             &[
@@ -87,13 +88,8 @@ mod metrictests {
 
     fn metric_helper_non_tokio() -> Result<()> {
         let (meter_provider, _rt) = setup_metrics_non_tokio(true);
-        const METER_NAME: &str = "test_meter";
-        const INSTRUMENT_NAME: &str = "test_counter";
-
-        // Add data to u64_counter
-        let meter = opentelemetry::global::meter_provider().meter(METER_NAME);
         let expected_uuid = Uuid::new_v4().to_string();
-        let counter = meter.u64_counter(INSTRUMENT_NAME).build();
+        let counter = test_counter(&meter_provider);
         counter.add(
             10,
             &[
@@ -114,13 +110,8 @@ mod metrictests {
     }
 
     fn emit_and_validate_metrics(meter_provider: SdkMeterProvider) -> Result<()> {
-        const METER_NAME: &str = "test_meter";
-        const INSTRUMENT_NAME: &str = "test_counter";
-
-        // Add data to u64_counter
-        let meter = opentelemetry::global::meter_provider().meter(METER_NAME);
         let expected_uuid = Uuid::new_v4().to_string();
-        let counter = meter.u64_counter(INSTRUMENT_NAME).build();
+        let counter = test_counter(&meter_provider);
         counter.add(
             10,
             &[
