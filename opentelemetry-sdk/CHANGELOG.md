@@ -5,6 +5,9 @@
 - Improved metrics measurement performance by speeding up attribute set
   lookups (faster `KeyValue` equality and boxed attribute keys).
   ([#3787](https://github.com/open-telemetry/opentelemetry-rust/pull/3787))
+- Avoid retaining tracer providers for non-recording spans. Processors and
+  exporters may now shut down while non-recording spans are still active if the
+  last provider reference is dropped. ([#3774](https://github.com/open-telemetry/opentelemetry-rust/pull/3774))
 - **Breaking:** `IdGenerator` now requires an `is_random()` implementation;
   custom generators need to add this method to their existing implementation:
 
@@ -50,6 +53,38 @@
   Malformed `ot` sub-fields are discarded when encoding sampled TraceState so
   valid explicit randomness is preserved
   (Part of [#3195](https://github.com/open-telemetry/opentelemetry-rust/issues/3195)).
+- Fix several W3C compliance issues in `BaggagePropagator`:
+- **Breaking:** Fix several W3C compliance issues in `BaggagePropagator`.
+  Entries that were previously propagated may now be skipped, see the
+  `opentelemetry` changelog for migration examples.
+  ([#3785](https://github.com/open-telemetry/opentelemetry-rust/pull/3785))
+  - Entries accepted by `Baggage` but not propagatable (non-token names,
+    invalid metadata or exceeding the W3C 64 entry / 8192 byte limits) are
+    skipped on injection and reported through the
+    `BaggagePropagator.Inject.DroppedEntries` internal log.
+  - Metadata (properties) are validated against the W3C `property` grammar
+    and propagated verbatim in their percent-encoded form, so encoded
+    delimiters such as `%2C` are no longer emitted as literal `,`. Empty
+    properties (e.g. `;;` or a trailing `;`) make a member invalid.
+  - Values containing `=` are no longer truncated.
+  - `%` and `\` in values are now percent-encoded on injection.
+  - Only optional whitespace (space and tab) around members is trimmed.
+  - Names are no longer percent decoded.
+  - All `baggage` headers are read (via `Extractor::get_all`) and limits apply
+    to their combination.
+  - Percent encoded sequences that are not valid UTF-8 are replaced with
+    U+FFFD instead of dropping the member.
+  - Existing baggage in the context is kept when no valid member is extracted.
+  - The 8192 byte limit is enforced on the encoded header during injection.
+    Entries that do not fit  or whose metadata is not valid W3C `property`
+    syntax are skipped.
+  - The 64 entry limit is enforced by the propagator instead of `Baggage`.
+    Only entries that are actually injected count towards it.
+  - Internal logs no longer include the baggage header content.
+- Fixed `BatchSpanProcessor` exporting spans that were recorded but not sampled
+  (e.g. `SamplingDecision::RecordOnly`). It now drops them in `on_end`, matching
+  `SimpleSpanProcessor` and the specification.
+  ([#3812](https://github.com/open-telemetry/opentelemetry-rust/issues/3812))
 
 ## 0.33.1
 

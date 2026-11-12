@@ -524,13 +524,15 @@ mod tests {
     #[cfg(any(feature = "http-proto", feature = "http-json"))]
     #[test]
     fn export_builder_error_invalid_http_endpoint() {
-        use crate::{LogExporter, WithExportConfig};
+        use crate::{LogExporter, WithExportConfig, OTEL_EXPORTER_OTLP_PROTOCOL};
 
-        let exporter_result = LogExporter::builder()
-            .with_http()
-            .with_endpoint("invalid_uri/something")
-            .with_timeout(std::time::Duration::from_secs(10))
-            .build();
+        let exporter_result = temp_env::with_var_unset(OTEL_EXPORTER_OTLP_PROTOCOL, || {
+            LogExporter::builder()
+                .with_http()
+                .with_endpoint("invalid_uri/something")
+                .with_timeout(std::time::Duration::from_secs(10))
+                .build()
+        });
 
         assert!(
             matches!(
