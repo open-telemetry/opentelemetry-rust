@@ -136,6 +136,7 @@
 //! For `trace` the following feature flags are available:
 //!
 //! * `jaeger_remote_sampler`: Enables the [Jaeger remote sampler](https://www.jaegertracing.io/docs/1.53/sampling/).
+//! * `experimental_trace_probability_sampler`: Enables the [consistent probability sampler](https://opentelemetry.io/docs/specs/otel/trace/tracestate-probability-sampling/).
 //!
 //!
 //! Support for recording and exporting telemetry asynchronously and perform

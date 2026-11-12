@@ -301,16 +301,24 @@ OpenTelemetry supports multiple ways to configure the API, SDK and other compone
 
 ### Experimental/Unstable features
 
-Use `otel_unstable` feature flag for implementation of specification with [experimental](https://github.com/open-telemetry/opentelemetry-specification/blob/v1.27.0/specification/document-status.md) status. This approach ensures clear demarcation and safe integration of new or evolving features. Utilize the following structure:
+Use a dedicated `experimental_` feature flag for implementations of specifications with [experimental](https://github.com/open-telemetry/opentelemetry-specification/blob/v1.27.0/specification/document-status.md) status. For signal-specific features, use `experimental_<signal>_<feature_name>`, for example:
 
-```rust
-#[cfg(feature = "otel_unstable")]
-{
-    // Your feature implementation
-}
+```toml
+[features]
+experimental_metrics_custom_reader = ["metrics"]
 ```
 
-It's important to regularly review and remove the `otel_unstable` flag from the code once the feature becomes stable. This cleanup process is crucial to maintain the overall code quality and to ensure that stable features are accurately reflected in the main build.
+Gate the implementation and its public re-exports with the same feature:
+
+```rust
+#[cfg(feature = "experimental_metrics_custom_reader")]
+mod manual_reader;
+
+#[cfg(feature = "experimental_metrics_custom_reader")]
+pub use manual_reader::ManualReader;
+```
+
+Remove the feature gate once the feature becomes stable.
 
 ### Optional features
 

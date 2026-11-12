@@ -45,7 +45,7 @@ serde_json = { workspace = true, optional = true }
 
 # compression dependencies
 flate2 = { version = "1.1.2", optional = true }
-zstd = { version = "0.13", optional = true }
+zstd = { version = "0.14.3", optional = true }
 
 [dev-dependencies]
 tokio-stream = { workspace = true, features = ["net"] }

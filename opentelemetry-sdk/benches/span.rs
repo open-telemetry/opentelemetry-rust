@@ -20,7 +20,10 @@
 
 use criterion::{criterion_group, criterion_main, Criterion};
 use opentelemetry::{
-    trace::{mark_span_as_active, Span, SpanBuilder, TraceContextExt, Tracer, TracerProvider},
+    trace::{
+        mark_span_as_active, Span, SpanBuilder, SpanContext, SpanId, TraceContextExt, TraceFlags,
+        TraceId, TraceState, Tracer, TracerProvider,
+    },
     Context, KeyValue,
 };
 use opentelemetry_sdk::{
@@ -158,6 +161,43 @@ fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("span-creation-with-active-parent", |b| {
         b.iter(|| {
             let mut span = tracer.start_with_context("span-name", &parent_cx);
+            span.end();
+        });
+    });
+
+    // Parent carries a non-empty TraceState (e.g. vendor sampling state),
+    // which is cloned into every child span context.
+    let tracestate_parent_cx = Context::new().with_remote_span_context(SpanContext::new(
+        TraceId::from(1),
+        SpanId::from(1),
+        TraceFlags::SAMPLED,
+        true,
+        TraceState::from_key_value([("vendor", "sampling-state")]).unwrap(),
+    ));
+    trace_benchmark_group(c, "span-creation-with-tracestate-parent", |tracer| {
+        let mut span = tracer.start_with_context("span-name", &tracestate_parent_cx);
+        span.end();
+    });
+
+    let parent_based_provider = sdktrace::SdkTracerProvider::builder()
+        .with_sampler(sdktrace::Sampler::ParentBased(Box::new(
+            sdktrace::Sampler::AlwaysOn,
+        )))
+        .with_simple_exporter(VoidExporter)
+        .build();
+    let parent_based_tracer = parent_based_provider.tracer("parent-based");
+    let unsampled_parent_cx = Context::new().with_remote_span_context(SpanContext::new(
+        TraceId::from_bytes([1; 16]),
+        SpanId::from_bytes([1; 8]),
+        TraceFlags::default(),
+        true,
+        Default::default(),
+    ));
+
+    c.bench_function("span-creation-dropped-child-under-unsampled-parent", |b| {
+        b.iter(|| {
+            let mut span =
+                parent_based_tracer.start_with_context("span-name", &unsampled_parent_cx);
             span.end();
         });
     });

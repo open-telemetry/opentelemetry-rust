@@ -2,6 +2,12 @@
 
 ## vNext
 
+- Improved metrics measurement performance by speeding up attribute set
+  lookups (faster `KeyValue` equality and boxed attribute keys).
+  ([#3787](https://github.com/open-telemetry/opentelemetry-rust/pull/3787))
+- Avoid retaining tracer providers for non-recording spans. Processors and
+  exporters may now shut down while non-recording spans are still active if the
+  last provider reference is dropped. ([#3774](https://github.com/open-telemetry/opentelemetry-rust/pull/3774))
 - **Breaking:** `IdGenerator` now requires an `is_random()` implementation;
   custom generators need to add this method to their existing implementation:
 
@@ -19,6 +25,9 @@
   parent, and local sampling decisions clear private propagator flags while retaining
   `RANDOM`. `TraceContextPropagator` now propagates the `random-trace-id` flag
   ([#3270](https://github.com/open-telemetry/opentelemetry-rust/issues/3270)).
+- Improved performance of non-recording spans: calling `Span::end()` no longer
+  reads the system clock when the span is not recording.
+  ([#3814](https://github.com/open-telemetry/opentelemetry-rust/pull/3814))
 - Fixed `BatchSpanProcessor` and `BatchLogProcessor` shutdown reporting success
   when exporting the final queued telemetry failed.
   ([#3793](https://github.com/open-telemetry/opentelemetry-rust/issues/3793))
@@ -34,6 +43,48 @@
   up attribute sets when aggregating measurements (default remains std's
   `RandomState`).
   ([#3788](https://github.com/open-telemetry/opentelemetry-rust/pull/3788))
+- Added `ProbabilitySampler` behind the `experimental_trace_probability_sampler`
+  feature, implementing the OpenTelemetry Consistent Probability Sampling
+  specification. It evaluates 56-bit
+  rejection thresholds against randomness derived from input `ot=rv:...` TraceState
+  (including root spans) or the least significant 56 bits of the
+  TraceId, updates outgoing TraceState with `ot=th:...`, and supports configuration as
+  a standalone sampler or as a delegate within `ParentBasedSampler`.
+  Malformed `ot` sub-fields are discarded when encoding sampled TraceState so
+  valid explicit randomness is preserved
+  (Part of [#3195](https://github.com/open-telemetry/opentelemetry-rust/issues/3195)).
+- Fix several W3C compliance issues in `BaggagePropagator`:
+- **Breaking:** Fix several W3C compliance issues in `BaggagePropagator`.
+  Entries that were previously propagated may now be skipped, see the
+  `opentelemetry` changelog for migration examples.
+  ([#3785](https://github.com/open-telemetry/opentelemetry-rust/pull/3785))
+  - Entries accepted by `Baggage` but not propagatable (non-token names,
+    invalid metadata or exceeding the W3C 64 entry / 8192 byte limits) are
+    skipped on injection and reported through the
+    `BaggagePropagator.Inject.DroppedEntries` internal log.
+  - Metadata (properties) are validated against the W3C `property` grammar
+    and propagated verbatim in their percent-encoded form, so encoded
+    delimiters such as `%2C` are no longer emitted as literal `,`. Empty
+    properties (e.g. `;;` or a trailing `;`) make a member invalid.
+  - Values containing `=` are no longer truncated.
+  - `%` and `\` in values are now percent-encoded on injection.
+  - Only optional whitespace (space and tab) around members is trimmed.
+  - Names are no longer percent decoded.
+  - All `baggage` headers are read (via `Extractor::get_all`) and limits apply
+    to their combination.
+  - Percent encoded sequences that are not valid UTF-8 are replaced with
+    U+FFFD instead of dropping the member.
+  - Existing baggage in the context is kept when no valid member is extracted.
+  - The 8192 byte limit is enforced on the encoded header during injection.
+    Entries that do not fit  or whose metadata is not valid W3C `property`
+    syntax are skipped.
+  - The 64 entry limit is enforced by the propagator instead of `Baggage`.
+    Only entries that are actually injected count towards it.
+  - Internal logs no longer include the baggage header content.
+- Fixed `BatchSpanProcessor` exporting spans that were recorded but not sampled
+  (e.g. `SamplingDecision::RecordOnly`). It now drops them in `on_end`, matching
+  `SimpleSpanProcessor` and the specification.
+  ([#3812](https://github.com/open-telemetry/opentelemetry-rust/issues/3812))
 
 ## 0.33.1
 
@@ -123,6 +174,17 @@ Released 2026-Sep-18
 - Fixed asynchronous counters (`ObservableCounter`, `ObservableUpDownCounter`)
   using delta temporality reporting incorrect deltas when observed attributes
   were recorded in an unsorted key order.
+- **Breaking** `SpanProcessor::on_end` now takes `FinishedSpan<'_>` by value instead of `SpanData`.
+  - Completed spans are inspected via `FinishedSpan::span_data(&self) -> &SpanData`.
+  - Processors taking ownership call `FinishedSpan::into_owned(self) -> SpanData`. The last registered processor receives an owned wrapper and can move the data by calling `into_owned()`; earlier processors receive a borrowed wrapper and clone on `into_owned()`.
+  - Live `Span` instances provide clone-free inherent read methods (`parent_span_id`, `span_kind`, `name`, `start_time`, `attributes`, `dropped_attributes_count`, `events`, `dropped_events_count`, `links`, `dropped_links_count`, `status`, `instrumentation_scope`), while context is accessed via `Span::span_context()`.
+  - Custom span processors should update `on_end(&self, span: FinishedSpan<'_>)`, use `span.span_data()` for read-only access, and call `span.into_owned()` only when they need an owned `SpanData`.
+  Supersedes [#2962](https://github.com/open-telemetry/opentelemetry-rust/pull/2962).
+  Relates to [#2940](https://github.com/open-telemetry/opentelemetry-rust/issues/2940),
+  [#2726](https://github.com/open-telemetry/opentelemetry-rust/issues/2726),
+  [#2939](https://github.com/open-telemetry/opentelemetry-rust/issues/2939).
+- Fix `Span::end_with_timestamp` preserving explicit end times even when equal to start time,
+  instead of silently overwriting with the current time.
 
 ## 0.32.1
 

@@ -136,9 +136,9 @@ OpenTelemetry is built against the latest stable release. The minimum supported
 version is 1.75.0. The current OpenTelemetry version is NOT guaranteed to build
 on Rust versions earlier than the minimum supported version.
 
-The current stable Rust compiler and the three most recent minor versions
-before it will always be supported. For example, if the current stable compiler
-version is 1.49, the minimum supported version will not be increased past 1.46,
-three minor versions prior. Increasing the minimum supported compiler version
-is not considered a semver breaking change as long as doing so complies with
-this policy.
+As an API and SDK-independent crate, `opentelemetry` retains its existing MSRV
+for as long as practical, even when the SDK and implementation crates advance
+to newer Rust versions. MSRV bumps are shipped only in minor releases, never
+patch releases, and are not considered
+semver-breaking changes. See the [MSRV
+policy](../docs/adr/002_msrv_policy.md) for the complete rules.

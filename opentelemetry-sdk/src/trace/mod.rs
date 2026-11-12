@@ -36,8 +36,11 @@ pub use in_memory_exporter::{InMemorySpanExporter, InMemorySpanExporterBuilder};
 pub use id_generator::{IdGenerator, RandomIdGenerator};
 pub use links::SpanLinks;
 pub use provider::{SdkTracerProvider, TracerProviderBuilder};
+#[cfg(feature = "experimental_trace_probability_sampler")]
+#[cfg_attr(docsrs, doc(cfg(feature = "experimental_trace_probability_sampler")))]
+pub use sampler::ProbabilitySampler;
 pub use sampler::{ParentBasedSampler, Sampler, SamplingDecision, SamplingResult, ShouldSample};
-pub use span::Span;
+pub use span::{FinishedSpan, Span};
 pub use span_limit::SpanLimits;
 pub use span_processor::{
     BatchConfig, BatchConfigBuilder, BatchSpanProcessor, BatchSpanProcessorBuilder,
@@ -153,7 +156,7 @@ mod tests {
             }
         }
 
-        fn on_end(&self, span: SpanData) {
+        fn on_end(&self, span: FinishedSpan<'_>) {
             // Fixed: Context::current() no longer panics from Drop
             // See https://github.com/open-telemetry/opentelemetry-rust/issues/2871
             Context::current();
@@ -164,7 +167,8 @@ mod tests {
 
             // Verify: on_start stored the baggage as an attribute
             assert!(
-                span.attributes
+                span.span_data()
+                    .attributes
                     .iter()
                     .any(|kv| kv.key.as_str() == "bag-key"),
                 "Baggage should have been stored as span attribute in on_start"
