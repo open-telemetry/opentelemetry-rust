@@ -106,10 +106,12 @@ impl TestServer {
         custom_channel: bool,
         encoding_limit: Option<usize>,
         decoding_limit: Option<usize>,
+        retry_policy: Option<RetryPolicy>,
     ) -> B {
-        let mut builder = builder
-            .with_timeout(Duration::from_secs(5))
-            .with_retry_policy(RetryPolicy::disabled());
+        let mut builder = builder.with_timeout(Duration::from_secs(5));
+        if let Some(policy) = retry_policy {
+            builder = builder.with_retry_policy(policy);
+        }
         builder = if custom_channel {
             builder.with_channel(
                 Channel::from_shared(self.endpoint.clone())
@@ -150,6 +152,7 @@ impl Signal {
         custom_channel: bool,
         encoding_limit: Option<usize>,
         decoding_limit: Option<usize>,
+        retry_policy: Option<RetryPolicy>,
     ) -> OTelSdkResult {
         match self {
             Self::Traces => {
@@ -159,6 +162,7 @@ impl Signal {
                         custom_channel,
                         encoding_limit,
                         decoding_limit,
+                        retry_policy,
                     )
                     .build()
                     .unwrap();
@@ -171,6 +175,7 @@ impl Signal {
                         custom_channel,
                         encoding_limit,
                         decoding_limit,
+                        retry_policy,
                     )
                     .build()
                     .unwrap();
@@ -183,6 +188,7 @@ impl Signal {
                         custom_channel,
                         encoding_limit,
                         decoding_limit,
+                        retry_policy,
                     )
                     .build()
                     .unwrap();
@@ -203,7 +209,15 @@ async fn encoding_limits_apply_to_all_signals_and_custom_channels() {
         for custom_channel in [false, true] {
             for limit in [None, Some(0), Some(1024 * 1024)] {
                 let before = server.requests.load(Ordering::SeqCst);
-                let result = signal.export(&server, custom_channel, limit, None).await;
+                let result = signal
+                    .export(
+                        &server,
+                        custom_channel,
+                        limit,
+                        None,
+                        Some(RetryPolicy::disabled()),
+                    )
+                    .await;
                 assert_eq!(
                     result.is_ok(),
                     limit != Some(0),
@@ -227,13 +241,58 @@ async fn decoding_limits_apply_to_all_signals_and_custom_channels() {
             for custom_channel in [false, true] {
                 for limit in [None, Some(0), Some(8 * 1024 * 1024)] {
                     let before = server.requests.load(Ordering::SeqCst);
-                    let result = signal.export(&server, custom_channel, None, limit).await;
+                    let result = signal
+                        .export(
+                            &server,
+                            custom_channel,
+                            None,
+                            limit,
+                            Some(RetryPolicy::disabled()),
+                        )
+                        .await;
                     let expected_success = response_size < limit.unwrap_or(4 * 1024 * 1024);
                     assert_eq!(result.is_ok(), expected_success,
                         "{signal:?}, custom channel: {custom_channel}, response size: {response_size}, limit: {limit:?}: {result:?}");
                     // A decoding rejection happens after the request reaches the collector.
                     assert_eq!(server.requests.load(Ordering::SeqCst) - before, 1);
                 }
+            }
+        }
+    }
+}
+
+#[tokio::test]
+async fn decoding_limits_with_default_retry_policy() {
+    for (response_size, decoding_limit) in [(32, Some(16)), (4 * 1024 * 1024 + 1, None)] {
+        let server = TestServer::new(response_size).await;
+        for signal in [Signal::Traces, Signal::Metrics, Signal::Logs] {
+            for custom_channel in [false, true] {
+                let before = server.requests.load(Ordering::SeqCst);
+                let result = signal
+                    .export(&server, custom_channel, None, decoding_limit, None)
+                    .await;
+                let error = result.expect_err("the response must exceed the decoding limit");
+                assert!(
+                    error.to_string().contains("OutOfRange"),
+                    "{signal:?}, custom channel: {custom_channel}, limit: {decoding_limit:?}: {error}"
+                );
+                // The current classifier retries tonic's local OutOfRange error even
+                // though the collector already received the batch on every attempt.
+                assert_eq!(
+                    server.requests.load(Ordering::SeqCst) - before,
+                    1 + RetryPolicy::default().max_retries,
+                    "{signal:?}, custom channel: {custom_channel}, limit: {decoding_limit:?}"
+                );
+
+                let before = server.requests.load(Ordering::SeqCst);
+                let result = signal
+                    .export(&server, custom_channel, None, Some(8 * 1024 * 1024), None)
+                    .await;
+                assert!(
+                    result.is_ok(),
+                    "{signal:?}, custom channel: {custom_channel}, response size: {response_size}: {result:?}"
+                );
+                assert_eq!(server.requests.load(Ordering::SeqCst) - before, 1);
             }
         }
     }
