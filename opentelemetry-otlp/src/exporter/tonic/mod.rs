@@ -41,6 +41,9 @@ pub(crate) mod metrics;
 #[cfg(feature = "trace")]
 pub(crate) mod trace;
 
+#[cfg(all(test, feature = "trace", feature = "metrics", feature = "logs"))]
+mod message_size_tests;
+
 /// Configuration for [tonic]
 ///
 /// [tonic]: https://github.com/hyperium/tonic
@@ -58,6 +61,10 @@ pub(crate) struct TonicConfig {
     pub(crate) tls_config: Option<ClientTlsConfig>,
     /// The compression algorithm to use when communicating with the collector.
     pub(crate) compression: Option<Compression>,
+    /// Maximum encoded export request size in bytes. `None` uses tonic's default.
+    pub(crate) max_encoding_message_size: Option<usize>,
+    /// Maximum decoded export response size in bytes. `None` uses tonic's default.
+    pub(crate) max_decoding_message_size: Option<usize>,
     pub(crate) channel: Option<tonic::transport::Channel>,
     pub(crate) interceptor: Option<BoxInterceptor>,
     /// The retry policy to use for gRPC requests.
@@ -154,6 +161,8 @@ impl Default for TonicExporterBuilder {
                 ))]
                 tls_config: None,
                 compression: None,
+                max_encoding_message_size: None,
+                max_decoding_message_size: None,
                 channel: Option::default(),
                 interceptor: Option::default(),
                 retry_policy: None,
@@ -382,6 +391,9 @@ impl TonicExporterBuilder {
 
         otel_debug!(name: "LogsTonicChannelBuilding");
 
+        let max_encoding_message_size = self.tonic_config.max_encoding_message_size;
+        let max_decoding_message_size = self.tonic_config.max_decoding_message_size;
+
         let (channel, interceptor, compression, retry_policy, timeout) = self.build_channel(
             crate::logs::OTEL_EXPORTER_OTLP_LOGS_ENDPOINT,
             crate::logs::OTEL_EXPORTER_OTLP_LOGS_TIMEOUT,
@@ -391,7 +403,15 @@ impl TonicExporterBuilder {
             crate::logs::OTEL_EXPORTER_OTLP_LOGS_INSECURE,
         )?;
 
-        let client = TonicLogsClient::new(channel, interceptor, compression, retry_policy, timeout);
+        let client = TonicLogsClient::new(
+            channel,
+            interceptor,
+            compression,
+            retry_policy,
+            timeout,
+            max_encoding_message_size,
+            max_decoding_message_size,
+        );
 
         Ok(crate::logs::LogExporter::from_tonic(client))
     }
@@ -407,6 +427,9 @@ impl TonicExporterBuilder {
 
         otel_debug!(name: "MetricsTonicChannelBuilding");
 
+        let max_encoding_message_size = self.tonic_config.max_encoding_message_size;
+        let max_decoding_message_size = self.tonic_config.max_decoding_message_size;
+
         let (channel, interceptor, compression, retry_policy, timeout) = self.build_channel(
             crate::metric::OTEL_EXPORTER_OTLP_METRICS_ENDPOINT,
             crate::metric::OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
@@ -416,8 +439,15 @@ impl TonicExporterBuilder {
             crate::metric::OTEL_EXPORTER_OTLP_METRICS_INSECURE,
         )?;
 
-        let client =
-            TonicMetricsClient::new(channel, interceptor, compression, retry_policy, timeout);
+        let client = TonicMetricsClient::new(
+            channel,
+            interceptor,
+            compression,
+            retry_policy,
+            timeout,
+            max_encoding_message_size,
+            max_decoding_message_size,
+        );
 
         Ok(MetricExporter::from_tonic(client, temporality))
     }
@@ -429,6 +459,9 @@ impl TonicExporterBuilder {
 
         otel_debug!(name: "TracesTonicChannelBuilding");
 
+        let max_encoding_message_size = self.tonic_config.max_encoding_message_size;
+        let max_decoding_message_size = self.tonic_config.max_decoding_message_size;
+
         let (channel, interceptor, compression, retry_policy, timeout) = self.build_channel(
             crate::span::OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
             crate::span::OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
@@ -438,8 +471,15 @@ impl TonicExporterBuilder {
             crate::span::OTEL_EXPORTER_OTLP_TRACES_INSECURE,
         )?;
 
-        let client =
-            TonicTracesClient::new(channel, interceptor, compression, retry_policy, timeout);
+        let client = TonicTracesClient::new(
+            channel,
+            interceptor,
+            compression,
+            retry_policy,
+            timeout,
+            max_encoding_message_size,
+            max_decoding_message_size,
+        );
 
         Ok(crate::SpanExporter::from_tonic(client))
     }
@@ -692,6 +732,19 @@ pub trait WithTonicConfig: super::sealed::WithTonicConfig {
     /// Set the compression algorithm to use when communicating with the collector.
     fn with_compression(self, compression: Compression) -> Self;
 
+    /// Set the maximum encoded size of an export request, in bytes.
+    ///
+    /// By default, tonic does not limit the size of outgoing messages. This
+    /// setting applies to the client, including when using a custom channel;
+    /// it does not change the collector's limit on incoming messages.
+    fn with_max_encoding_message_size(self, limit: usize) -> Self;
+
+    /// Set the maximum decoded size of an export response, in bytes.
+    ///
+    /// By default, tonic limits incoming messages to 4 MiB. This setting also
+    /// applies when using a custom channel.
+    fn with_max_decoding_message_size(self, limit: usize) -> Self;
+
     /// Use `channel` as tonic's transport channel.
     /// this will override tls config and should only be used
     /// when working with non-HTTP transports.
@@ -798,6 +851,16 @@ impl<B: HasTonicConfig> WithTonicConfig for B {
 
     fn with_compression(mut self, compression: Compression) -> Self {
         self.tonic_config().compression = Some(compression);
+        self
+    }
+
+    fn with_max_encoding_message_size(mut self, limit: usize) -> Self {
+        self.tonic_config().max_encoding_message_size = Some(limit);
+        self
+    }
+
+    fn with_max_decoding_message_size(mut self, limit: usize) -> Self {
+        self.tonic_config().max_decoding_message_size = Some(limit);
         self
     }
 
