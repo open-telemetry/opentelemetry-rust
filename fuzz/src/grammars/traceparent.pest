@@ -1,0 +1,25 @@
+// W3C Trace Context Level 2 `traceparent` header.
+// https://www.w3.org/TR/trace-context-2/#traceparent-header-field-values
+
+traceparent = { SOI ~ (version_00 | future_version) ~ EOI }
+
+version_00 = _{ "00" ~ "-" ~ fields }
+
+// Headers with a newer version are parsed with the version 00 fields. Anything following them has
+// to start with a "-".
+// https://www.w3.org/TR/trace-context-2/#versioning-of-traceparent
+future_version = _{ future_ver ~ "-" ~ fields ~ ("-" ~ ANY*)? }
+
+// Any version other than "00" (handled above) and "ff" (forbidden).
+future_ver = @{
+    "0" ~ ('1'..'9' | 'a'..'f')
+  | ('1'..'9' | 'a'..'e') ~ hexdiglc
+  | "f" ~ (ASCII_DIGIT | 'a'..'e')
+}
+
+fields      = _{ trace_id ~ "-" ~ parent_id ~ "-" ~ trace_flags }
+trace_id    = @{ hexdiglc{32} }
+parent_id   = @{ hexdiglc{16} }
+trace_flags = @{ hexdiglc{2} }
+
+hexdiglc = _{ ASCII_DIGIT | 'a'..'f' }
