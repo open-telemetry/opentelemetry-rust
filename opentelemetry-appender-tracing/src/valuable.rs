@@ -12,20 +12,20 @@ pub(crate) fn to_any_value(value: Value<'_>) -> Option<AnyValue> {
     let any_value = match value {
         Value::Bool(v) => AnyValue::from(v),
         Value::Char(v) => AnyValue::from(v.to_string()),
-        Value::F32(v) => AnyValue::from(f64::from(v)),
+        Value::F32(v) => AnyValue::from(v),
         Value::F64(v) => AnyValue::from(v),
-        Value::I8(v) => AnyValue::from(i64::from(v)),
-        Value::I16(v) => AnyValue::from(i64::from(v)),
-        Value::I32(v) => AnyValue::from(i64::from(v)),
+        Value::I8(v) => AnyValue::from(v),
+        Value::I16(v) => AnyValue::from(v),
+        Value::I32(v) => AnyValue::from(v),
         Value::I64(v) => AnyValue::from(v),
-        Value::I128(v) => int_or_string(v),
-        Value::Isize(v) => int_or_string(v),
-        Value::U8(v) => AnyValue::from(i64::from(v)),
-        Value::U16(v) => AnyValue::from(i64::from(v)),
-        Value::U32(v) => AnyValue::from(i64::from(v)),
-        Value::U64(v) => int_or_string(v),
-        Value::U128(v) => int_or_string(v),
-        Value::Usize(v) => int_or_string(v),
+        Value::I128(v) => AnyValue::from(v),
+        Value::Isize(v) => AnyValue::from(v),
+        Value::U8(v) => AnyValue::from(v),
+        Value::U16(v) => AnyValue::from(v),
+        Value::U32(v) => AnyValue::from(v),
+        Value::U64(v) => AnyValue::from(v),
+        Value::U128(v) => AnyValue::from(v),
+        Value::Usize(v) => AnyValue::from(v),
         Value::String(v) => AnyValue::from(v.to_owned()),
         Value::Path(v) => AnyValue::from(v.display().to_string()),
         Value::Error(v) => AnyValue::from(v.to_string()),
@@ -84,16 +84,6 @@ pub(crate) fn to_any_value(value: Value<'_>) -> Option<AnyValue> {
         _ => AnyValue::from(format!("{value:?}")),
     };
     Some(any_value)
-}
-
-fn int_or_string<T>(value: T) -> AnyValue
-where
-    T: TryInto<i64> + ToString + Copy,
-{
-    match value.try_into() {
-        Ok(signed) => AnyValue::from(signed),
-        Err(_) => AnyValue::from(value.to_string()),
-    }
 }
 
 /// Converts the fields of a struct or enum variant. Named fields become a `Map`,

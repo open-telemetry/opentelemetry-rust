@@ -115,6 +115,25 @@ impl_trivial_from!(StringValue, AnyValue::String);
 
 impl_trivial_from!(bool, AnyValue::Boolean);
 
+macro_rules! impl_int_from_with_string_fallback {
+    ($t:ty) => {
+        impl From<$t> for AnyValue {
+            fn from(val: $t) -> AnyValue {
+                match i64::try_from(val) {
+                    Ok(signed) => AnyValue::from(signed),
+                    Err(_) => AnyValue::from(val.to_string()),
+                }
+            }
+        }
+    };
+}
+
+impl_int_from_with_string_fallback!(isize);
+impl_int_from_with_string_fallback!(usize);
+impl_int_from_with_string_fallback!(u64);
+impl_int_from_with_string_fallback!(i128);
+impl_int_from_with_string_fallback!(u128);
+
 impl From<&[u8]> for AnyValue {
     fn from(val: &[u8]) -> AnyValue {
         AnyValue::Bytes(Box::new(val.to_vec()))
@@ -227,4 +246,36 @@ impl Severity {
             Severity::Fatal4 => "FATAL4",
         }
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    macro_rules! fallback_test {
+        ($value:expr, $expected:expr, $test_name:ident) => {
+            #[test]
+            fn $test_name() {
+                assert_eq!(AnyValue::from($value), $expected);
+            }
+        };
+    }
+
+    fallback_test!(isize::MIN, AnyValue::Int(isize::MIN as i64), isize_min);
+    fallback_test!(42usize, AnyValue::Int(42), usize_fits_in_i64);
+    fallback_test!(
+        u64::MAX,
+        AnyValue::String("18446744073709551615".into()),
+        large_u64_fallback
+    );
+    fallback_test!(
+        i64::MIN as i128 - 1,
+        AnyValue::String("-9223372036854775809".into()),
+        less_than_i64_min_fallback
+    );
+    fallback_test!(
+        i64::MAX as u128 + 1,
+        AnyValue::String("9223372036854775808".into()),
+        bigger_than_i64_max_fallback
+    );
 }
