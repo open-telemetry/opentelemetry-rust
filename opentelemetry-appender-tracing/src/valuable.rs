@@ -2,7 +2,7 @@
 
 use opentelemetry::{logs::AnyValue, Key};
 use std::collections::HashMap;
-use valuable::{Fields, NamedValues, Value, Visit};
+use valuable::{Fields, NamedValues, TupleDef, Value, Visit};
 
 /// Converts a [`valuable::Value`] into an [`AnyValue`], preserving its structure.
 ///
@@ -36,8 +36,24 @@ pub(crate) fn to_any_value(value: Value<'_>) -> Option<AnyValue> {
             visitor.into_any_value()
         }
         Value::Tuplable(v) => {
-            let mut visitor = ListVisitor(Vec::new());
+            // Knowing size ahead of time we can allocate the exact space needed or return early
+            let capacity = match v.definition() {
+                TupleDef::Static { fields: 0, .. } => return None,
+                TupleDef::Static { fields, .. } => fields,
+                TupleDef::Dynamic {
+                    fields: (lower_bound, _),
+                    ..
+                } => lower_bound,
+                _ => 0,
+            };
+            let mut visitor = ListVisitor(Vec::with_capacity(capacity));
             v.visit(&mut visitor);
+
+            // For consistency with returning `None` on unit tuples a custom dynamic `Tuplable`
+            // that ends up inserting no values also returns None
+            if visitor.len() == 0 {
+                return None;
+            }
             visitor.into_any_value()
         }
         Value::Mappable(v) => {
@@ -110,6 +126,10 @@ struct ListVisitor(Vec<AnyValue>);
 impl ListVisitor {
     fn into_any_value(self) -> AnyValue {
         AnyValue::ListAny(Box::new(self.0))
+    }
+
+    fn len(&self) -> usize {
+        self.0.len()
     }
 }
 
@@ -215,6 +235,13 @@ mod tests {
         );
         assert_eq!(to_any_value(valuable::Value::Unit), None);
         assert_eq!(to_any_value(None::<u8>.as_value()), None);
+    }
+
+    #[test]
+    fn unit_tuple_is_omitted() {
+        // Unlike `Option::None`, `()` is a `Tuplable` rather than `Value::Unit`.
+        assert!(matches!(().as_value(), valuable::Value::Tuplable(_)));
+        assert_eq!(to_any_value(().as_value()), None);
     }
 
     #[test]

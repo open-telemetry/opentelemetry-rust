@@ -1850,4 +1850,98 @@ mod tests {
             &expected
         ));
     }
+
+    #[cfg(all(
+        tracing_unstable,
+        feature = "valuable",
+        feature = "experimental_span_attributes"
+    ))]
+    #[test]
+    fn tracing_appender_valuable_span_fields() {
+        use valuable::Valuable;
+
+        #[derive(Valuable)]
+        struct User {
+            id: u32,
+            roles: Vec<&'static str>,
+        }
+
+        // Arrange
+        let exporter = InMemoryLogExporter::default();
+        let provider = SdkLoggerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
+
+        let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
+            .with_tracing_span_attributes(TracingSpanAttributes::all())
+            .build()
+            .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
+                meta.is_span() || *meta.level() <= tracing::Level::ERROR
+            }));
+        let subscriber = tracing_subscriber::registry().with(layer);
+        let _guard = tracing::subscriber::set_default(subscriber);
+
+        // Act: one valuable field set at span creation (on_new_span) and one
+        // recorded afterwards (on_record).
+        let user = User {
+            id: 42,
+            roles: vec!["admin", "dev"],
+        };
+        let recorded = User {
+            id: 7,
+            roles: vec!["guest"],
+        };
+        let span = tracing::info_span!(
+            "test_span",
+            user = user.as_value(),
+            recorded_user = tracing::field::Empty
+        );
+        let _enter = span.enter();
+        span.record("recorded_user", recorded.as_value());
+
+        tracing::error!("test message");
+
+        provider.force_flush().unwrap();
+
+        // Assert
+        let logs = exporter.get_emitted_logs().unwrap();
+        assert_eq!(logs.len(), 1);
+        let log = &logs[0];
+
+        let user_map = |id: i64, roles: &[&'static str]| {
+            AnyValue::Map(Box::new(
+                [
+                    (Key::new("id"), AnyValue::Int(id)),
+                    (
+                        Key::new("roles"),
+                        AnyValue::ListAny(Box::new(
+                            roles
+                                .iter()
+                                .map(|r| AnyValue::String((*r).into()))
+                                .collect(),
+                        )),
+                    ),
+                ]
+                .into_iter()
+                .collect(),
+            ))
+        };
+
+        assert!(
+            attributes_contains(
+                &log.record,
+                &Key::new("user"),
+                &user_map(42, &["admin", "dev"])
+            ),
+            "valuable field set at span creation should be captured"
+        );
+        assert!(
+            attributes_contains(
+                &log.record,
+                &Key::new("recorded_user"),
+                &user_map(7, &["guest"])
+            ),
+            "valuable field recorded via span.record should be captured"
+        );
+    }
 }
