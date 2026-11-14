@@ -85,6 +85,11 @@
   (e.g. `SamplingDecision::RecordOnly`). It now drops them in `on_end`, matching
   `SimpleSpanProcessor` and the specification.
   ([#3812](https://github.com/open-telemetry/opentelemetry-rust/issues/3812))
+- Added support for the `OTEL_SDK_DISABLED` environment variable.
+  ([#3088](https://github.com/open-telemetry/opentelemetry-rust/pull/3088))
+- Spans from a shutdown or disabled `SdkTracerProvider` now carry the parent's
+  span context instead of an empty one, so an incoming trace keeps propagating.
+  ([#3088](https://github.com/open-telemetry/opentelemetry-rust/pull/3088))
 
 ## 0.33.1
 
