@@ -2,6 +2,9 @@
 
 ## vNext
 
+- Fix `Span::set_status` keeping an earlier `Status::Error` when a later one
+  has a description that sorts first alphabetically. The latest error is now
+  recorded; `Ok` stays final and `Unset` is still ignored.
 - Improved metrics measurement performance by speeding up attribute set
   lookups (faster `KeyValue` equality and boxed attribute keys).
   ([#3787](https://github.com/open-telemetry/opentelemetry-rust/pull/3787))
