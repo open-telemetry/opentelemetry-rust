@@ -10,6 +10,7 @@ allow = [
 ]
 
 exceptions = [
+    { allow = ["BSD-2-Clause"], crate = "zstd-sys" }, # Legacy zstd decoders also use BSD-2-Clause.
     { allow = ["CDLA-Permissive-2.0"], crate = "webpki-roots" }, # This crate is a dependency of `reqwest`.
     { allow = ["CDLA-Permissive-2.0"], crate = "webpki-root-certs" }, # This crate is a dependency of `reqwest`.
     { allow = ["OpenSSL"], crate = "aws-lc-sys" }, # This crate is a dependency of `reqwest`.
