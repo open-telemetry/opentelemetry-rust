@@ -57,7 +57,7 @@ url = { version = "2.5", default-features = false }
 anyhow = "1.0.94"
 base64 = "0.22.1"
 chrono = { version = "0.4.34", default-features = false }
-ctor = "0.2.9"
+ctor = "0.13.0"
 ctrlc = "3.2.5"
 futures-channel = "0.3"
 futures-sink = "0.3"
