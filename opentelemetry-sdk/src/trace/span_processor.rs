@@ -855,6 +855,9 @@ impl SpanProcessor for BatchSpanProcessor {
 
     /// Handles span end.
     fn on_end(&self, span: FinishedSpan<'_>) {
+        if !span.span_data().span_context.is_sampled() {
+            return;
+        }
         let span = span.into_owned();
 
         // Count the span before enqueueing it so that a concurrent
@@ -1290,7 +1293,9 @@ mod tests {
     use crate::trace::{BatchConfig, BatchConfigBuilder, SpanEvents, SpanLinks};
     use crate::trace::{FinishedSpan, InMemorySpanExporterBuilder};
     use crate::trace::{SpanData, SpanExporter};
-    use opentelemetry::trace::{SpanContext, SpanId, SpanKind, Status};
+    use opentelemetry::trace::{
+        SpanContext, SpanId, SpanKind, Status, TraceFlags, TraceId, TraceState,
+    };
     use std::fmt::Debug;
     use std::time::Duration;
 
@@ -1471,7 +1476,13 @@ mod tests {
     // Helper function to create a default test span
     fn create_test_span(name: &str) -> SpanData {
         SpanData {
-            span_context: SpanContext::empty_context(),
+            span_context: SpanContext::new(
+                TraceId::from(1),
+                SpanId::from(1),
+                TraceFlags::SAMPLED,
+                false,
+                TraceState::default(),
+            ),
             parent_span_id: SpanId::INVALID,
             parent_span_is_remote: false,
             span_kind: SpanKind::Internal,
@@ -1606,6 +1617,26 @@ mod tests {
             "Unexpected number of exported spans"
         );
         assert_eq!(exported_spans[0].name, "force_flush_span");
+    }
+
+    #[test]
+    fn batchspanprocessor_on_end_skips_export_if_not_sampled() {
+        let exporter = InMemorySpanExporterBuilder::new().build();
+        let processor = BatchSpanProcessor::builder(exporter.clone()).build();
+        let mut unsampled = create_test_span("unsampled");
+        unsampled.span_context = SpanContext::new(
+            TraceId::from(2),
+            SpanId::from(2),
+            TraceFlags::default(),
+            false,
+            TraceState::default(),
+        );
+        let sampled = new_test_export_span_data();
+        processor.on_end(FinishedSpan::borrowed(&unsampled));
+        processor.on_end(FinishedSpan::borrowed(&sampled));
+        processor.force_flush().unwrap();
+        assert_eq!(exporter.get_finished_spans().unwrap(), vec![sampled]);
+        let _result = processor.shutdown();
     }
 
     #[test]

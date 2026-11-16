@@ -22,7 +22,7 @@ use std::sync::Arc;
 /// `Tracer` implementation to create and manage spans
 #[derive(Clone)]
 pub struct SdkTracer {
-    scope: Arc<InstrumentationScope>,
+    pub(crate) scope: Arc<InstrumentationScope>,
     provider: SdkTracerProvider,
 }
 
@@ -52,6 +52,7 @@ impl SdkTracer {
     }
 
     /// Instrumentation scope of this tracer.
+    #[cfg(all(test, feature = "testing"))]
     pub(crate) fn instrumentation_scope(&self) -> &InstrumentationScope {
         &self.scope
     }
@@ -131,9 +132,9 @@ impl SdkTracer {
         } else {
             SpanEvents::default()
         };
-        Span::new(
+        Span::new_recording(
             sc,
-            Some(SpanData {
+            SpanData {
                 parent_span_id: psc.span_id(),
                 parent_span_is_remote: psc.is_valid() && psc.is_remote(),
                 span_kind: builder.span_kind.take().unwrap_or(SpanKind::Internal),
@@ -146,8 +147,8 @@ impl SdkTracer {
                 events: span_events,
                 links: span_links,
                 status: Status::default(),
-            }),
-            self.clone(),
+            },
+            self,
             span_limits,
         )
     }
@@ -165,24 +166,9 @@ impl opentelemetry::trace::Tracer for SdkTracer {
     /// trace includes a single root span, which is the shared ancestor of all other
     /// spans in the trace.
     fn build_with_context(&self, builder: SpanBuilder, parent_cx: &Context) -> Self::Span {
-        if parent_cx.is_telemetry_suppressed() {
-            return Span::new(
-                SpanContext::empty_context(),
-                None,
-                self.clone(),
-                SpanLimits::default(),
-            );
-        }
-
         let provider = self.provider();
-        // no point start a span if the tracer provider has already being shutdown
-        if provider.is_shutdown() {
-            return Span::new(
-                SpanContext::empty_context(),
-                None,
-                self.clone(),
-                SpanLimits::default(),
-            );
+        if parent_cx.is_telemetry_suppressed() || provider.is_shutdown() {
+            return Span::new_non_recording(SpanContext::empty_context(), self);
         }
 
         let config = provider.config();
@@ -260,7 +246,7 @@ impl opentelemetry::trace::Tracer for SdkTracer {
                     false,
                     trace_state,
                 );
-                Span::new(span_context, None, self.clone(), span_limits)
+                Span::new_non_recording(span_context, self)
             }
         };
 
