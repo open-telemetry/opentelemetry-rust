@@ -2,6 +2,12 @@
 
 ## vNext
 
+- Remove the `chrono` dependency, which is unmaintained
+  ([RUSTSEC-2026-0543](https://rustsec.org/advisories/RUSTSEC-2026-0543.html)).
+  Timestamps are formatted with `std` only. The printed format
+  (`YYYY-MM-DD HH:MM:SS.ffffff`, UTC) is unchanged, and a time outside
+  chrono's range no longer panics.
+
 ## 0.33.1
 
 Released 2026-Oct-08

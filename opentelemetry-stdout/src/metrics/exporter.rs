@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use crate::time::format_time;
 use core::fmt;
 use opentelemetry_sdk::metrics::data::{AggregatedMetrics, MetricData};
 use opentelemetry_sdk::metrics::Temporality;
@@ -143,33 +143,21 @@ fn print_sum<T: Debug + Copy>(sum: &Sum<T>) {
     } else {
         println!("\t\tTemporality  : Delta");
     }
-    let datetime: DateTime<Utc> = sum.start_time().into();
-    println!(
-        "\t\tStartTime    : {}",
-        datetime.format("%Y-%m-%d %H:%M:%S%.6f")
-    );
-    let datetime: DateTime<Utc> = sum.time().into();
-    println!(
-        "\t\tEndTime      : {}",
-        datetime.format("%Y-%m-%d %H:%M:%S%.6f")
-    );
+    let datetime = format_time(sum.start_time());
+    println!("\t\tStartTime    : {}", datetime);
+    let datetime = format_time(sum.time());
+    println!("\t\tEndTime      : {}", datetime);
     print_sum_data_points(sum.data_points());
 }
 
 fn print_gauge<T: Debug + Copy>(gauge: &Gauge<T>) {
     println!("\t\tGauge DataPoints");
     if let Some(start_time) = gauge.start_time() {
-        let datetime: DateTime<Utc> = start_time.into();
-        println!(
-            "\t\tStartTime    : {}",
-            datetime.format("%Y-%m-%d %H:%M:%S%.6f")
-        );
+        let datetime = format_time(start_time);
+        println!("\t\tStartTime    : {}", datetime);
     }
-    let datetime: DateTime<Utc> = gauge.time().into();
-    println!(
-        "\t\tEndTime      : {}",
-        datetime.format("%Y-%m-%d %H:%M:%S%.6f")
-    );
+    let datetime = format_time(gauge.time());
+    println!("\t\tEndTime      : {}", datetime);
     print_gauge_data_points(gauge.data_points());
 }
 
@@ -179,16 +167,10 @@ fn print_histogram<T: Debug + Copy>(histogram: &Histogram<T>) {
     } else {
         println!("\t\tTemporality  : Delta");
     }
-    let datetime: DateTime<Utc> = histogram.start_time().into();
-    println!(
-        "\t\tStartTime    : {}",
-        datetime.format("%Y-%m-%d %H:%M:%S%.6f")
-    );
-    let datetime: DateTime<Utc> = histogram.time().into();
-    println!(
-        "\t\tEndTime      : {}",
-        datetime.format("%Y-%m-%d %H:%M:%S%.6f")
-    );
+    let datetime = format_time(histogram.start_time());
+    println!("\t\tStartTime    : {}", datetime);
+    let datetime = format_time(histogram.time());
+    println!("\t\tEndTime      : {}", datetime);
     println!("\t\tHistogram DataPoints");
     print_hist_data_points(histogram.data_points());
 }
@@ -199,16 +181,10 @@ fn print_exponential_histogram<T: Debug + Copy>(histogram: &ExponentialHistogram
     } else {
         println!("\t\tTemporality  : Delta");
     }
-    let datetime: DateTime<Utc> = histogram.start_time().into();
-    println!(
-        "\t\tStartTime    : {}",
-        datetime.format("%Y-%m-%d %H:%M:%S%.6f")
-    );
-    let datetime: DateTime<Utc> = histogram.time().into();
-    println!(
-        "\t\tEndTime      : {}",
-        datetime.format("%Y-%m-%d %H:%M:%S%.6f")
-    );
+    let datetime = format_time(histogram.start_time());
+    println!("\t\tStartTime    : {}", datetime);
+    let datetime = format_time(histogram.time());
+    println!("\t\tEndTime      : {}", datetime);
     println!("\t\tExponential Histogram DataPoints");
     print_exponential_hist_data_points(histogram.data_points());
 }
