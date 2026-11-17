@@ -70,7 +70,7 @@ mod tests {
         });
         get_text_map_propagator(|propagator| {
             let current = GLOBAL_TEXT_MAP_PROPAGATOR.load();
-            let _current = current.as_ref().unwrap();
+            assert_eq!(Arc::strong_count(current.as_ref().unwrap()), 1);
             set_text_map_propagator(TestPropagator {
                 fields: vec!["second".into()],
             });

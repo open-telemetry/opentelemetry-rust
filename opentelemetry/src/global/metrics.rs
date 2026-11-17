@@ -13,7 +13,7 @@ static GLOBAL_METER_PROVIDER: ArcSwapOption<GlobalMeterProvider> = ArcSwapOption
 fn with_meter_provider<R>(f: impl FnOnce(&GlobalMeterProvider) -> R) -> R {
     let current = GLOBAL_METER_PROVIDER.load();
     if let Some(provider) = current.as_deref() {
-        return f(&provider);
+        return f(provider);
     }
     drop(current);
 
@@ -22,7 +22,7 @@ fn with_meter_provider<R>(f: impl FnOnce(&GlobalMeterProvider) -> R) -> R {
         Arc::new(Arc::new(crate::metrics::noop::NoopMeterProvider::new()) as GlobalMeterProvider);
     let previous = GLOBAL_METER_PROVIDER.compare_and_swap(&None::<Arc<_>>, Some(noop.clone()));
     match previous.as_deref() {
-        Some(winner) => f(&winner),
+        Some(winner) => f(winner),
         None => f(&noop),
     }
 }
@@ -98,7 +98,7 @@ mod tests {
             let current = GLOBAL_METER_PROVIDER.load();
             let current = current.as_ref().unwrap();
             assert_eq!(Arc::strong_count(current), 1);
-            assert_eq!(Arc::strong_count(&current), 1);
+            assert_eq!(Arc::strong_count(current.as_ref()), 1);
             self.scopes.lock().unwrap().push(scope.clone());
             metrics::NoopMeterProvider::new().meter_with_scope(scope)
         }
