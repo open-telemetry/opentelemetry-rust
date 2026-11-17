@@ -375,7 +375,6 @@ impl trace::TracerProvider for GlobalTracerProvider {
 /// yet
 static GLOBAL_TRACER_PROVIDER: ArcSwapOption<GlobalTracerProvider> = ArcSwapOption::const_empty();
 
-/// Runs `f` with the current global provider.
 #[inline]
 fn with_tracer_provider<R>(f: impl FnOnce(&GlobalTracerProvider) -> R) -> R {
     let current = GLOBAL_TRACER_PROVIDER.load();

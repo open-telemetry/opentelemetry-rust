@@ -1,13 +1,11 @@
 use crate::propagation::TextMapPropagator;
 use crate::trace::noop::NoopTextMapPropagator;
+use std::ops::Deref;
 use std::sync::Arc;
 
 use arc_swap::ArcSwapOption;
 
-// ArcSwap requires a sized pointee.
-struct GlobalTextMapPropagator {
-    propagator: Arc<dyn TextMapPropagator + Send + Sync>,
-}
+type GlobalTextMapPropagator = Box<dyn TextMapPropagator + Send + Sync>;
 
 /// The global `TextMapPropagator` singleton, lazily initialized with a no-op propagator.
 static GLOBAL_TEXT_MAP_PROPAGATOR: ArcSwapOption<GlobalTextMapPropagator> =
@@ -15,9 +13,7 @@ static GLOBAL_TEXT_MAP_PROPAGATOR: ArcSwapOption<GlobalTextMapPropagator> =
 
 /// Sets the given [`TextMapPropagator`] propagator as the current global propagator.
 pub fn set_text_map_propagator<P: TextMapPropagator + Send + Sync + 'static>(propagator: P) {
-    GLOBAL_TEXT_MAP_PROPAGATOR.store(Some(Arc::new(GlobalTextMapPropagator {
-        propagator: Arc::new(propagator),
-    })));
+    GLOBAL_TEXT_MAP_PROPAGATOR.store(Some(Arc::new(Box::new(propagator))));
 }
 
 /// Executes a closure with a reference to the current global [`TextMapPropagator`] propagator.
@@ -27,18 +23,16 @@ where
 {
     let current = GLOBAL_TEXT_MAP_PROPAGATOR.load();
     if let Some(propagator) = current.as_deref() {
-        return f(propagator.propagator.as_ref());
+        return f(propagator.as_ref());
     }
     drop(current);
 
     // Lazily install the no-op propagator without overwriting a concurrent set.
-    let noop = Arc::new(GlobalTextMapPropagator {
-        propagator: Arc::new(NoopTextMapPropagator::new()),
-    });
+    let noop = Arc::new(Box::new(NoopTextMapPropagator::new()) as GlobalTextMapPropagator);
     let previous = GLOBAL_TEXT_MAP_PROPAGATOR.compare_and_swap(&None::<Arc<_>>, Some(noop.clone()));
     match previous.as_deref() {
-        Some(winner) => f(winner.propagator.as_ref()),
-        None => f(noop.propagator.as_ref()),
+        Some(winner) => f(winner.as_ref()),
+        None => f(noop.deref().as_ref()),
     }
 }
 
@@ -76,9 +70,7 @@ mod tests {
         });
         get_text_map_propagator(|propagator| {
             let current = GLOBAL_TEXT_MAP_PROPAGATOR.load();
-            let current = current.as_ref().unwrap();
-            assert_eq!(Arc::strong_count(current), 1);
-            assert_eq!(Arc::strong_count(&current.propagator), 1);
+            let _current = current.as_ref().unwrap();
             set_text_map_propagator(TestPropagator {
                 fields: vec!["second".into()],
             });

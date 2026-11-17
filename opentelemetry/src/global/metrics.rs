@@ -1,4 +1,4 @@
-use crate::metrics::{noop::NoopMeterProvider, Meter, MeterProvider};
+use crate::metrics::{self, Meter, MeterProvider};
 use crate::{otel_info, InstrumentationScope};
 use std::sync::Arc;
 
@@ -6,31 +6,24 @@ use arc_swap::ArcSwapOption;
 
 type GlobalMeterProvider = Arc<dyn MeterProvider + Send + Sync>;
 
-// ArcSwap requires a sized pointee.
-struct MeterProviderWrapper {
-    provider: GlobalMeterProvider,
-}
-
 /// The global `MeterProvider` singleton, lazily initialized with a no-op provider.
-static GLOBAL_METER_PROVIDER: ArcSwapOption<MeterProviderWrapper> = ArcSwapOption::const_empty();
+static GLOBAL_METER_PROVIDER: ArcSwapOption<GlobalMeterProvider> = ArcSwapOption::const_empty();
 
-/// Runs `f` with the current global provider.
 #[inline]
 fn with_meter_provider<R>(f: impl FnOnce(&GlobalMeterProvider) -> R) -> R {
     let current = GLOBAL_METER_PROVIDER.load();
     if let Some(provider) = current.as_deref() {
-        return f(&provider.provider);
+        return f(&provider);
     }
     drop(current);
 
     // Lazily install the no-op provider without overwriting a concurrent set.
-    let noop = Arc::new(MeterProviderWrapper {
-        provider: Arc::new(NoopMeterProvider::new()),
-    });
+    let noop =
+        Arc::new(Arc::new(crate::metrics::noop::NoopMeterProvider::new()) as GlobalMeterProvider);
     let previous = GLOBAL_METER_PROVIDER.compare_and_swap(&None::<Arc<_>>, Some(noop.clone()));
     match previous.as_deref() {
-        Some(winner) => f(&winner.provider),
-        None => f(&noop.provider),
+        Some(winner) => f(&winner),
+        None => f(&noop),
     }
 }
 
@@ -41,11 +34,11 @@ fn with_meter_provider<R>(f: impl FnOnce(&GlobalMeterProvider) -> R) -> R {
 /// **NOTE:** This function should be called before getting [`Meter`] instances via [`meter()`] or [`meter_with_scope()`]. Otherwise, you could get no-op [`Meter`] instances.
 pub fn set_meter_provider<P>(new_provider: P)
 where
-    P: MeterProvider + Send + Sync + 'static,
+    P: metrics::MeterProvider + Send + Sync + 'static,
 {
-    GLOBAL_METER_PROVIDER.store(Some(Arc::new(MeterProviderWrapper {
-        provider: Arc::new(new_provider),
-    })));
+    GLOBAL_METER_PROVIDER.store(Some(
+        Arc::new(Arc::new(new_provider) as GlobalMeterProvider),
+    ));
     otel_info!(name: "MeterProvider.GlobalSet", message = "Global meter provider is set. Meters can now be created using global::meter() or global::meter_with_scope().");
 }
 
@@ -105,9 +98,9 @@ mod tests {
             let current = GLOBAL_METER_PROVIDER.load();
             let current = current.as_ref().unwrap();
             assert_eq!(Arc::strong_count(current), 1);
-            assert_eq!(Arc::strong_count(&current.provider), 1);
+            assert_eq!(Arc::strong_count(&current), 1);
             self.scopes.lock().unwrap().push(scope.clone());
-            NoopMeterProvider::new().meter_with_scope(scope)
+            metrics::NoopMeterProvider::new().meter_with_scope(scope)
         }
     }
 
@@ -133,7 +126,7 @@ mod tests {
         with_meter_provider(|provider| {
             assert!(Arc::ptr_eq(provider, &owned));
             assert_eq!(Arc::strong_count(provider), 2);
-            set_meter_provider(NoopMeterProvider::new());
+            set_meter_provider(metrics::NoopMeterProvider::new());
         });
         assert_eq!(Arc::strong_count(&owned), 1);
         owned.meter("retained");
