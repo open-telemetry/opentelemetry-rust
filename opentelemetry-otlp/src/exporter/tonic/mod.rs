@@ -743,6 +743,9 @@ pub trait WithTonicConfig: super::sealed::WithTonicConfig {
     ///
     /// By default, tonic limits incoming messages to 4 MiB. This setting also
     /// applies when using a custom channel.
+    ///
+    /// An oversized response can cause the exporter to resend a batch that the
+    /// collector has already processed.
     fn with_max_decoding_message_size(self, limit: usize) -> Self;
 
     /// Use `channel` as tonic's transport channel.

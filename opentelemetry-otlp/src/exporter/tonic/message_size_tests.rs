@@ -278,6 +278,7 @@ async fn decoding_limits_with_default_retry_policy() {
                 );
                 // The current classifier retries tonic's local OutOfRange error even
                 // though the collector already received the batch on every attempt.
+                // See https://github.com/open-telemetry/opentelemetry-rust/issues/3871.
                 assert_eq!(
                     server.requests.load(Ordering::SeqCst) - before,
                     1 + RetryPolicy::default().max_retries,
