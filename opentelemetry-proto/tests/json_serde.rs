@@ -18,7 +18,7 @@ mod json_serde {
     };
     use opentelemetry_proto::tonic::common::v1::any_value::Value;
     use opentelemetry_proto::tonic::common::v1::{
-        AnyValue, ArrayValue, InstrumentationScope, KeyValue, KeyValueList,
+        AnyValue, ArrayValue, EntityRef, InstrumentationScope, KeyValue, KeyValueList,
     };
     #[cfg(feature = "logs")]
     use opentelemetry_proto::tonic::logs::v1::{LogRecord, ResourceLogs, ScopeLogs};
@@ -845,6 +845,37 @@ mod json_serde {
                 attributes[1].value.as_ref().and_then(|v| v.value.as_ref()),
                 Some(&Value::KvlistValue(KeyValueList { values: vec![] }))
             );
+        }
+    }
+
+    mod entity_ref {
+        use super::*;
+
+        #[test]
+        fn deserialize_omitted_fields_as_defaults() {
+            let entity: EntityRef = serde_json::from_str(
+                r#"{"schemaUrl":"https://opentelemetry.io/schemas/1.40.0","type":"service","idKeys":["service.name"]}"#,
+            )
+            .expect("entity ref without descriptionKeys must deserialize");
+            assert_eq!(entity.schema_url, "https://opentelemetry.io/schemas/1.40.0");
+            assert_eq!(entity.r#type, "service");
+            assert_eq!(entity.id_keys, vec!["service.name".to_string()]);
+            assert!(entity.description_keys.is_empty());
+
+            let entity: EntityRef = serde_json::from_str(r#"{"type":"service"}"#)
+                .expect("entity ref with only a type must deserialize");
+            assert_eq!(entity.schema_url, "");
+            assert!(entity.id_keys.is_empty());
+        }
+
+        #[test]
+        fn deserialize_resource_with_partial_entity_ref() {
+            let resource: Resource = serde_json::from_str(
+                r#"{"attributes":[],"entityRefs":[{"type":"service","idKeys":["service.name"]}]}"#,
+            )
+            .expect("resource with a partial entity ref must deserialize");
+            assert_eq!(resource.entity_refs.len(), 1);
+            assert!(resource.entity_refs[0].description_keys.is_empty());
         }
     }
 

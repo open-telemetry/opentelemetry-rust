@@ -9,6 +9,9 @@
 - **Bug fix**: Accept OTLP/JSON `arrayValue` and `kvlistValue` objects that omit an empty
   `values` list (`{"arrayValue":{}}`) instead of rejecting the entire request
   ([#3831](https://github.com/open-telemetry/opentelemetry-rust/issues/3831)).
+- **Bug fix**: Accept OTLP/JSON `entityRefs` entries that omit empty fields such as
+  `descriptionKeys` instead of rejecting the entire request
+  ([#3866](https://github.com/open-telemetry/opentelemetry-rust/issues/3866)).
 
 ## 0.33.1
 
