@@ -426,6 +426,7 @@ mod tests {
                     min: None,
                     max: None,
                     sum: 3u64,
+                    sum_recorded: true,
                     exemplars: vec![],
                 }],
                 start_time: now(),
@@ -472,6 +473,7 @@ mod tests {
                     min: None,
                     max: None,
                     sum: 3u64,
+                    sum_recorded: true,
                     scale: 10,
                     zero_count: 1,
                     positive_bucket: ExponentialBucket {

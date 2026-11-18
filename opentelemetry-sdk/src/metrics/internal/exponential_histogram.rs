@@ -474,6 +474,7 @@ impl<T: Number, S: AttributeBuildHasher> ExpoHistogram<T, S> {
                         None
                     },
                     sum: if self.record_sum { b.sum } else { T::default() },
+                    sum_recorded: self.record_sum,
                     scale: b.scale,
                     zero_count: b.zero_count,
                     positive_bucket: data::ExponentialBucket {
@@ -534,6 +535,7 @@ impl<T: Number, S: AttributeBuildHasher> ExpoHistogram<T, S> {
                         None
                     },
                     sum: if self.record_sum { b.sum } else { T::default() },
+                    sum_recorded: self.record_sum,
                     scale: b.scale,
                     zero_count: b.zero_count,
                     positive_bucket: data::ExponentialBucket {
@@ -1368,6 +1370,7 @@ mod tests {
                         min: Some(1.into()),
                         max: Some(16.into()),
                         sum: 31.into(),
+                        sum_recorded: true,
                         scale: -1,
                         positive_bucket: data::ExponentialBucket {
                             offset: -1,
@@ -1413,6 +1416,7 @@ mod tests {
                         min: Some(1.into()),
                         max: Some(16.into()),
                         sum: 31.into(),
+                        sum_recorded: true,
                         scale: -1,
                         positive_bucket: data::ExponentialBucket {
                             offset: -1,
@@ -1461,6 +1465,7 @@ mod tests {
                         min: Some(1.into()),
                         max: Some(16.into()),
                         sum: 31.into(),
+                        sum_recorded: true,
                         scale: -1,
                         positive_bucket: data::ExponentialBucket {
                             offset: -1,
@@ -1508,6 +1513,7 @@ mod tests {
                         min: Some(1.into()),
                         max: Some(16.into()),
                         sum: 44.into(),
+                        sum_recorded: true,
                         scale: -1,
                         positive_bucket: data::ExponentialBucket {
                             offset: -1,
