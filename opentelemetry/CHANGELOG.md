@@ -2,6 +2,9 @@
 
 ## vNext
 
+- Avoid locking context spans that were non-recording when inserted when checking
+  `is_recording()`. The context still owns the span and forwards lifecycle calls.
+  ([#3775](https://github.com/open-telemetry/opentelemetry-rust/pull/3775))
 - Added `TraceFlags::RANDOM`, `TraceFlags::is_random`, `TraceFlags::with_random`, and
   `SpanContext::is_random` for the W3C Trace Context Level 2 `random-trace-id` flag
   ([#3270](https://github.com/open-telemetry/opentelemetry-rust/issues/3270)).
