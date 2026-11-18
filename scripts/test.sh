@@ -68,6 +68,9 @@ done <<EOF
 ${self_obs_tests}
 EOF
 
+echo "Running tests for opentelemetry-appender-tracing package with tracing_unstable (valuable support)"
+RUSTFLAGS="--cfg tracing_unstable" cargo test --manifest-path=opentelemetry-appender-tracing/Cargo.toml --all-features --lib
+
 echo "Running ignored tests for opentelemetry-appender-tracing package (global logger tests)"
 cargo test --manifest-path=opentelemetry-appender-tracing/Cargo.toml --all-features layer::tests::tracing_appender_standalone_with_tracing_log -- --ignored --exact
 cargo test --manifest-path=opentelemetry-appender-tracing/Cargo.toml --all-features layer::tests::tracing_appender_inside_tracing_context_with_tracing_log -- --ignored --exact

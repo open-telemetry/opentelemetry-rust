@@ -119,6 +119,7 @@
 //! | `&[u8]`        | `Bytes`                       |
 //! | `&dyn Debug`   | `String` (via `Debug` formatting) |
 //! | `&dyn Error`   | `String` (via `Debug` formatting). This is stored into an attribute with key "exception.message", following [OTel conventions](https://opentelemetry.io/docs/specs/semconv/attributes-registry/exception/) |
+//! | `valuable::Value` | Structured `AnyValue` (see [`valuable` Support](#valuable-support)). Requires the `valuable` feature |
 //!
 //! In future, additional types may be supported.
 //!
@@ -156,16 +157,53 @@
 //! > for that. The span enrichment feature here only *reads* tracing-span fields to
 //! > copy them onto log records — it does not create or manage OpenTelemetry spans.
 //!
+//! ## `valuable` Support
+//!
+//! Gated behind the `valuable` cargo feature. Since `tracing`'s `valuable`
+//! support is unstable, the crate must also be compiled with `--cfg tracing_unstable`,
+//! typically by setting `RUSTFLAGS="--cfg tracing_unstable"`. Without both, fields
+//! implementing [`valuable::Valuable`](https://docs.rs/valuable) are recorded via
+//! their `Debug` representation as before.
+//!
+//! When enabled, `valuable` fields on events (and on tracing spans when
+//! `experimental_span_attributes` is enabled) are converted into structured `AnyValue`s:
+//!
+//! | `valuable` Value                      | OpenTelemetry `AnyValue` Type                                   |
+//! |---------------------------------------|-----------------------------------------------------------------|
+//! | `bool`                                | `Boolean`                                                       |
+//! | integers                              | `Int` (if convertible to `i64` without loss) else `String`      |
+//! | `f32`, `f64`                          | `Double`                                                        |
+//! | `char`, `&str`, `Path`, `Error`       | `String`                                                        |
+//! | lists, tuples, tuple structs          | `ListAny`                                                       |
+//! | maps, structs with named fields       | `Map` (non-string map keys are `Debug` formatted)               |
+//! | newtype structs                       | the inner value                                                 |
+//! | unit enum variants                    | `String` holding the variant name                               |
+//! | other enum variants                   | `Map` with the variant name as key and its fields as value      |
+//! | `()` unit value / `Option::None`      | omitted                                                         |
+//!
+//! ```ignore
+//! use valuable::Valuable;
+//!
+//! #[derive(Valuable)]
+//! struct User {
+//!     id: u64,
+//!     roles: Vec<&'static str>,
+//! }
+//!
+//! let user = User { id: 1, roles: vec!["admin"] };
+//! // Exported with attribute `user` = Map { id: Int(1), roles: ListAny([String("admin")]) }
+//! tracing::info!(user = user.as_value(), "user logged in");
+//! ```
+//!
 //! ## Feature Flags
 //!
 //! - `experimental_span_attributes`: Enables tracing-span attribute enrichment
 //!   (`TracingSpanAttributes`, `with_tracing_span_attributes`).
 //! - `experimental_metadata_attributes`: Adds source code metadata (`code.filepath`,
 //!   `code.filename`, `code.namespace`, `code.lineno`) as log record attributes.
+//! - `valuable`: Records [`valuable`](https://docs.rs/valuable) fields as
+//!   structured `AnyValue`s. Requires `--cfg tracing_unstable`.
 //!
-//!
-//! ## Limitations
-//! 1. There is no support for `Valuable` crate. [2819](https://github.com/open-telemetry/opentelemetry-rust/issues/2819)
 //!
 //! ## Stability Guarantees
 //! // TODO
@@ -176,3 +214,5 @@
 //! - Tracing: [tracing](https://docs.rs/tracing/)
 //! - OpenTelemetry Logs: [OpenTelemetry Logging Specification](https://opentelemetry.io/docs/specs/otel/logs/)
 pub mod layer;
+#[cfg(all(tracing_unstable, feature = "valuable"))]
+mod valuable;
