@@ -9,7 +9,7 @@ use opentelemetry_prometheus::{ExporterBuilder, ResourceSelector};
 use opentelemetry_sdk::metrics::SdkMeterProvider;
 use opentelemetry_sdk::Resource;
 use opentelemetry_semantic_conventions::resource::{SERVICE_NAME, TELEMETRY_SDK_VERSION};
-use prometheus::{Encoder, TextEncoder};
+use prometheus_client::{encoding::text::encode, registry::Registry};
 
 const BOUNDARIES: &[f64] = &[
     0.0, 5.0, 10.0, 25.0, 50.0, 75.0, 100.0, 250.0, 500.0, 1000.0,
@@ -22,11 +22,8 @@ const BYTES_BOUNDARIES: &[f64] = &[
 
 #[test]
 fn scope_info_labels_are_added_to_metric_points() {
-    let registry = prometheus::Registry::new();
-    let exporter = ExporterBuilder::default()
-        .with_registry(registry.clone())
-        .build()
-        .unwrap();
+    let mut registry = Registry::default();
+    let exporter = ExporterBuilder::default().build(&mut registry).unwrap();
     let provider = SdkMeterProvider::builder().with_reader(exporter).build();
 
     let scope = InstrumentationScope::builder("scope-test")
@@ -47,7 +44,7 @@ fn scope_info_labels_are_added_to_metric_points() {
     let output = gather_and_encode(registry);
 
     assert!(output.contains(
-        r#"scope_counter_total{metric_attr="metric-value",otel_scope_name="scope-test",otel_scope_version="v1.2.3",otel_scope_schema_url="https://opentelemetry.io/schemas/1.0.0",otel_scope_custom_scope_attr="first;second"} 1"#
+        r#"scope_counter_total{metric_attr="metric-value",otel_scope_name="scope-test",otel_scope_version="v1.2.3",otel_scope_schema_url="https://opentelemetry.io/schemas/1.0.0",otel_scope_custom_scope_attr="first;second"} 1.0"#
     ));
     assert!(!output.contains("otel_scope_info"));
     assert!(!output.contains("reserved-version"));
@@ -56,11 +53,8 @@ fn scope_info_labels_are_added_to_metric_points() {
 
 #[test]
 fn scope_info_labels_do_not_collide_with_metric_attributes() {
-    let registry = prometheus::Registry::new();
-    let exporter = ExporterBuilder::default()
-        .with_registry(registry.clone())
-        .build()
-        .unwrap();
+    let mut registry = Registry::default();
+    let exporter = ExporterBuilder::default().build(&mut registry).unwrap();
     let provider = SdkMeterProvider::builder().with_reader(exporter).build();
 
     let scope = InstrumentationScope::builder("scope-test")
@@ -83,17 +77,16 @@ fn scope_info_labels_do_not_collide_with_metric_attributes() {
     let output = gather_and_encode(registry);
 
     assert!(output.contains(
-        r#"scope_counter_total{metric_attr="metric-value",otel_scope_name="scope-test;metric-scope-name",otel_scope_version="v1.2.3;metric-scope-version",otel_scope_schema_url="https://opentelemetry.io/schemas/1.0.0;metric-scope-schema-url"} 1"#
+        r#"scope_counter_total{metric_attr="metric-value",otel_scope_name="scope-test;metric-scope-name",otel_scope_version="v1.2.3;metric-scope-version",otel_scope_schema_url="https://opentelemetry.io/schemas/1.0.0;metric-scope-schema-url"} 1.0"#
     ));
 }
 
 #[test]
 fn scope_info_labels_can_be_disabled() {
-    let registry = prometheus::Registry::new();
+    let mut registry = Registry::default();
     let exporter = ExporterBuilder::default()
         .scope_info_enabled(false)
-        .with_registry(registry.clone())
-        .build()
+        .build(&mut registry)
         .unwrap();
     let provider = SdkMeterProvider::builder().with_reader(exporter).build();
 
@@ -109,18 +102,17 @@ fn scope_info_labels_can_be_disabled() {
 
     let output = gather_and_encode(registry);
 
-    assert!(output.contains(r#"scope_counter_total{metric_attr="metric-value"} 1"#));
+    assert!(output.contains(r#"scope_counter_total{metric_attr="metric-value"} 1.0"#));
     assert!(!output.contains("otel_scope_"));
 }
 
 #[test]
 fn resource_labels_are_added_when_scope_info_disabled() {
-    let registry = prometheus::Registry::new();
+    let mut registry = Registry::default();
     let exporter = ExporterBuilder::default()
         .scope_info_enabled(false)
         .with_resource_selector(ResourceSelector::All)
-        .with_registry(registry.clone())
-        .build()
+        .build(&mut registry)
         .unwrap();
     let resource = Resource::builder_empty()
         .with_attributes([KeyValue::new(SERVICE_NAME, "prometheus_test")])
@@ -137,7 +129,7 @@ fn resource_labels_are_added_when_scope_info_disabled() {
     let output = gather_and_encode(registry);
 
     assert!(output.contains(
-        r#"scope_counter_total{metric_attr="metric-value",service_name="prometheus_test"} 1"#
+        r#"scope_counter_total{metric_attr="metric-value",service_name="prometheus_test"} 1.0"#
     ));
     assert!(!output.contains("otel_scope_"));
 }
@@ -182,35 +174,6 @@ fn prometheus_exporter_integration() {
                 let counter = meter
                     .f64_counter("foo")
                     .with_description("a simple counter")
-                    .with_unit("ms")
-                    .build();
-                counter.add(5.0, &attrs);
-                counter.add(10.3, &attrs);
-                counter.add(9.0, &attrs);
-                let attrs2 = vec![
-                    KeyValue::new("A", "D"),
-                    KeyValue::new("C", "B"),
-                    KeyValue::new("E", true),
-                    KeyValue::new("F", 42),
-                ];
-                counter.add(5.0, &attrs2);
-            }),
-            ..Default::default()
-        },
-        TestCase {
-            name: "counter with suffixes disabled",
-            expected_file: "counter_disabled_suffix.txt",
-            builder: ExporterBuilder::default().without_counter_suffixes(),
-            record_metrics: Box::new(|meter| {
-                let attrs = vec![
-                    KeyValue::new("A", "B"),
-                    KeyValue::new("C", "D"),
-                    KeyValue::new("E", true),
-                    KeyValue::new("F", 42),
-                ];
-                let counter = meter
-                    .f64_counter("foo")
-                    .with_description("a simple counter without a total suffix")
                     .with_unit("ms")
                     .build();
                 counter.add(5.0, &attrs);
@@ -474,8 +437,8 @@ fn prometheus_exporter_integration() {
     ];
 
     for tc in test_cases {
-        let registry = prometheus::Registry::new();
-        let exporter = tc.builder.with_registry(registry.clone()).build().unwrap();
+        let mut registry = Registry::default();
+        let exporter = tc.builder.build(&mut registry).unwrap();
 
         let res = if tc.empty_resource {
             Resource::builder_empty().build()
@@ -515,19 +478,17 @@ fn prometheus_exporter_integration() {
     }
 }
 
-fn gather_and_compare(registry: prometheus::Registry, expected: String, name: &'static str) {
+fn gather_and_compare(registry: Registry, expected: String, name: &'static str) {
     let expected = get_platform_specific_string(expected);
     let output_string = get_platform_specific_string(gather_and_encode(registry));
 
     assert_eq!(output_string, expected, "{name}");
 }
 
-fn gather_and_encode(registry: prometheus::Registry) -> String {
-    let mut output = Vec::new();
-    let encoder = TextEncoder::new();
-    let metric_families = registry.gather();
-    encoder.encode(&metric_families, &mut output).unwrap();
-    String::from_utf8(output).unwrap()
+fn gather_and_encode(registry: Registry) -> String {
+    let mut output = String::new();
+    encode(&mut output, &registry).unwrap();
+    output
 }
 
 ///  Returns a String which uses the platform specific new line feed character.
@@ -540,11 +501,8 @@ fn get_platform_specific_string(input: String) -> String {
 
 #[test]
 fn multiple_scopes() {
-    let registry = prometheus::Registry::new();
-    let exporter = ExporterBuilder::default()
-        .with_registry(registry.clone())
-        .build()
-        .unwrap();
+    let mut registry = Registry::default();
+    let exporter = ExporterBuilder::default().build(&mut registry).unwrap();
 
     let resource = Resource::builder()
         .with_attributes([
@@ -887,8 +845,8 @@ fn duplicate_metrics() {
     ];
 
     for tc in test_cases {
-        let registry = prometheus::Registry::new();
-        let exporter = tc.builder.with_registry(registry.clone()).build().unwrap();
+        let mut registry = Registry::default();
+        let exporter = tc.builder.build(&mut registry).unwrap();
 
         let resource = Resource::builder()
             .with_attributes(
@@ -935,17 +893,8 @@ fn duplicate_metrics() {
     }
 }
 
-fn gather_and_compare_multi(
-    registry: prometheus::Registry,
-    expected: Vec<String>,
-    name: &'static str,
-) {
-    let mut output = Vec::new();
-    let encoder = TextEncoder::new();
-    let metric_families = registry.gather();
-    encoder.encode(&metric_families, &mut output).unwrap();
-
-    let output_string = get_platform_specific_string(String::from_utf8(output).unwrap());
+fn gather_and_compare_multi(registry: Registry, expected: Vec<String>, name: &'static str) {
+    let output_string = get_platform_specific_string(gather_and_encode(registry));
 
     assert!(
         expected.contains(&output_string),

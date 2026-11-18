@@ -1,16 +1,15 @@
 use core::fmt;
 use once_cell::sync::OnceCell;
 use opentelemetry_sdk::metrics::ManualReaderBuilder;
+use prometheus_client::registry::Registry;
 use std::sync::{Arc, Mutex};
 
 use crate::{Collector, PrometheusExporter, ResourceSelector};
 
 /// [PrometheusExporter] configuration options
 pub struct ExporterBuilder {
-    registry: Option<prometheus::Registry>,
     disable_target_info: bool,
     without_units: bool,
-    without_counter_suffixes: bool,
     namespace: Option<String>,
     scope_info_enabled: bool,
     reader: ManualReaderBuilder,
@@ -20,10 +19,8 @@ pub struct ExporterBuilder {
 impl Default for ExporterBuilder {
     fn default() -> Self {
         ExporterBuilder {
-            registry: None,
             disable_target_info: false,
             without_units: false,
-            without_counter_suffixes: false,
             namespace: None,
             scope_info_enabled: true,
             reader: ManualReaderBuilder::default(),
@@ -35,10 +32,8 @@ impl Default for ExporterBuilder {
 impl fmt::Debug for ExporterBuilder {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ExporterBuilder")
-            .field("registry", &self.registry)
             .field("disable_target_info", &self.disable_target_info)
             .field("without_units", &self.without_units)
-            .field("without_counter_suffixes", &self.without_counter_suffixes)
             .field("namespace", &self.namespace)
             .field("scope_info_enabled", &self.scope_info_enabled)
             .finish()
@@ -55,17 +50,6 @@ impl ExporterBuilder {
     /// With this option set, the name would instead be `request_duration_total`.
     pub fn without_units(mut self) -> Self {
         self.without_units = true;
-        self
-    }
-
-    /// Disables exporter's addition `_total` suffixes on counters.
-    ///
-    /// By default, metric names include a `_total` suffix to follow Prometheus
-    /// naming conventions. For example, the counter metric `happy.people` would
-    /// become `happy_people_total`. With this option set, the name would instead be
-    /// `happy_people`.
-    pub fn without_counter_suffixes(mut self) -> Self {
-        self.without_counter_suffixes = true;
         self
     }
 
@@ -106,14 +90,6 @@ impl ExporterBuilder {
         self
     }
 
-    /// Configures which [prometheus::Registry] the exporter will use.
-    ///
-    /// If no registry is specified, the prometheus default is used.
-    pub fn with_registry(mut self, registry: prometheus::Registry) -> Self {
-        self.registry = Some(registry);
-        self
-    }
-
     /// Configures whether to export resource as attributes with every metric.
     ///
     /// Note that this is orthogonal to the `target_info` metric, which can be disabled using `without_target_info`.
@@ -127,15 +103,21 @@ impl ExporterBuilder {
         self
     }
 
-    /// Creates a new [PrometheusExporter] from this configuration.
-    pub fn build(self) -> Result<PrometheusExporter, opentelemetry_sdk::error::OTelSdkError> {
+    /// Creates a new [PrometheusExporter] from this configuration and registers
+    /// its collector with the given [Registry].
+    ///
+    /// Metrics recorded through the exporter are exposed when the registry is
+    /// encoded, e.g. with [prometheus_client::encoding::text::encode].
+    pub fn build(
+        self,
+        registry: &mut Registry,
+    ) -> Result<PrometheusExporter, opentelemetry_sdk::error::OTelSdkError> {
         let reader = Arc::new(self.reader.build());
 
         let collector = Collector {
             reader: Arc::clone(&reader),
             disable_target_info: self.disable_target_info,
             without_units: self.without_units,
-            without_counter_suffixes: self.without_counter_suffixes,
             scope_info_enabled: self.scope_info_enabled,
             create_target_info_once: OnceCell::new(),
             namespace: self.namespace,
@@ -144,10 +126,7 @@ impl ExporterBuilder {
             resource_labels_once: OnceCell::new(),
         };
 
-        let registry = self.registry.unwrap_or_default();
-        registry
-            .register(Box::new(collector))
-            .map_err(|e| opentelemetry_sdk::error::OTelSdkError::InternalFailure(e.to_string()))?;
+        registry.register_collector(Box::new(collector));
 
         Ok(PrometheusExporter { reader })
     }

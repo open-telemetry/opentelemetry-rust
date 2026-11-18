@@ -2,6 +2,36 @@
 
 ## vNext
 
+- **Breaking** Switch from the [`prometheus`](https://crates.io/crates/prometheus) crate to the official
+  Prometheus client library, [`prometheus-client`](https://crates.io/crates/prometheus-client), as
+  recommended by the [OpenTelemetry specification](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/sdk_exporters/prometheus.md#client-libraries).
+  [#3855](https://github.com/open-telemetry/opentelemetry-rust/pull/3855)
+  - Metrics are now exposed in the [OpenMetrics text format](https://prometheus.io/docs/specs/om/open_metrics_spec/):
+    counter families are named without `_total` (the suffix is added to samples) units are emitted
+    as `# UNIT` metadata, float values are written as e.g. `1.0`, and the output ends with `# EOF`.
+  - `ExporterBuilder::with_registry` has been removed. `ExporterBuilder::build` now takes the
+    `&mut prometheus_client::registry::Registry` to register the exporter with.
+  - `ExporterBuilder::without_counter_suffixes` has been removed, as OpenMetrics requires the
+    `_total` suffix on counters.
+
+  Migration:
+
+  ```rust
+  // Before
+  let registry = prometheus::Registry::new();
+  let exporter = opentelemetry_prometheus::exporter()
+      .with_registry(registry.clone())
+      .build()?;
+  let mut buffer = Vec::new();
+  prometheus::TextEncoder::new().encode(&registry.gather(), &mut buffer)?;
+
+  // After
+  let mut registry = prometheus_client::registry::Registry::default();
+  let exporter = opentelemetry_prometheus::exporter().build(&mut registry)?;
+  let mut buffer = String::new();
+  prometheus_client::encoding::text::encode(&mut buffer, &registry)?;
+  ```
+
 ## 0.33.1
 
 Released 2026-Oct-08

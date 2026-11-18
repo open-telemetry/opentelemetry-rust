@@ -1,7 +1,6 @@
 use crate::get_attrs;
 use opentelemetry::Key;
 use opentelemetry_sdk::Resource;
-use prometheus::proto::LabelPair;
 use std::collections::HashSet;
 
 /// `ResourceSelector` is used to select which resource to export with every metrics.
@@ -31,7 +30,7 @@ impl From<HashSet<Key>> for ResourceSelector {
 }
 
 impl ResourceSelector {
-    pub(crate) fn select(&self, resource: &Resource) -> Vec<LabelPair> {
+    pub(crate) fn select(&self, resource: &Resource) -> Vec<(String, String)> {
         match self {
             ResourceSelector::All => get_attrs(&mut resource.iter(), &[]),
             ResourceSelector::None => Vec::new(),

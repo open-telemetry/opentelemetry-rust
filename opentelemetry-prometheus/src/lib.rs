@@ -5,17 +5,15 @@
 //! ```
 //! use opentelemetry::{metrics::MeterProvider, KeyValue};
 //! use opentelemetry_sdk::metrics::SdkMeterProvider;
-//! use prometheus::{Encoder, TextEncoder};
+//! use prometheus_client::{encoding::text::encode, registry::Registry};
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!
 //! // create a new prometheus registry
-//! let registry = prometheus::Registry::new();
+//! let mut registry = Registry::default();
 //!
 //! // configure OpenTelemetry to use this registry
-//! let exporter = opentelemetry_prometheus::exporter()
-//!     .with_registry(registry.clone())
-//!     .build()?;
+//! let exporter = opentelemetry_prometheus::exporter().build(&mut registry)?;
 //!
 //! // set up a meter to create instruments
 //! let provider = SdkMeterProvider::builder().with_reader(exporter).build();
@@ -34,40 +32,39 @@
 //! counter.add(100, &[KeyValue::new("key", "value")]);
 //! histogram.record(100, &[KeyValue::new("key", "value")]);
 //!
-//! // Encode data as text or protobuf
-//! let encoder = TextEncoder::new();
-//! let metric_families = registry.gather();
-//! let mut result = Vec::new();
-//! encoder.encode(&metric_families, &mut result)?;
+//! // Encode data in the OpenMetrics text format
+//! let mut result = String::new();
+//! encode(&mut result, &registry)?;
 //!
 //! // result now contains encoded metrics:
 //! //
-//! // # HELP a_counter_total Counts things
-//! // # TYPE a_counter_total counter
-//! // a_counter_total{key="value",otel_scope_name="my-app"} 100
+//! // # HELP a_counter Counts things
+//! // # TYPE a_counter counter
+//! // a_counter_total{key="value",otel_scope_name="my-app"} 100.0
 //! // # HELP a_histogram Records values
 //! // # TYPE a_histogram histogram
-//! // a_histogram_bucket{key="value",otel_scope_name="my-app",le="0"} 0
-//! // a_histogram_bucket{key="value",otel_scope_name="my-app",le="5"} 0
-//! // a_histogram_bucket{key="value",otel_scope_name="my-app",le="10"} 0
-//! // a_histogram_bucket{key="value",otel_scope_name="my-app",le="25"} 0
-//! // a_histogram_bucket{key="value",otel_scope_name="my-app",le="50"} 0
-//! // a_histogram_bucket{key="value",otel_scope_name="my-app",le="75"} 0
-//! // a_histogram_bucket{key="value",otel_scope_name="my-app",le="100"} 1
-//! // a_histogram_bucket{key="value",otel_scope_name="my-app",le="250"} 1
-//! // a_histogram_bucket{key="value",otel_scope_name="my-app",le="500"} 1
-//! // a_histogram_bucket{key="value",otel_scope_name="my-app",le="750"} 1
-//! // a_histogram_bucket{key="value",otel_scope_name="my-app",le="1000"} 1
-//! // a_histogram_bucket{key="value",otel_scope_name="my-app",le="2500"} 1
-//! // a_histogram_bucket{key="value",otel_scope_name="my-app",le="5000"} 1
-//! // a_histogram_bucket{key="value",otel_scope_name="my-app",le="7500"} 1
-//! // a_histogram_bucket{key="value",otel_scope_name="my-app",le="10000"} 1
-//! // a_histogram_bucket{key="value",otel_scope_name="my-app",le="+Inf"} 1
-//! // a_histogram_sum{key="value",otel_scope_name="my-app"} 100
+//! // a_histogram_sum{key="value",otel_scope_name="my-app"} 100.0
 //! // a_histogram_count{key="value",otel_scope_name="my-app"} 1
+//! // a_histogram_bucket{le="0.0",key="value",otel_scope_name="my-app"} 0
+//! // a_histogram_bucket{le="5.0",key="value",otel_scope_name="my-app"} 0
+//! // a_histogram_bucket{le="10.0",key="value",otel_scope_name="my-app"} 0
+//! // a_histogram_bucket{le="25.0",key="value",otel_scope_name="my-app"} 0
+//! // a_histogram_bucket{le="50.0",key="value",otel_scope_name="my-app"} 0
+//! // a_histogram_bucket{le="75.0",key="value",otel_scope_name="my-app"} 0
+//! // a_histogram_bucket{le="100.0",key="value",otel_scope_name="my-app"} 1
+//! // a_histogram_bucket{le="250.0",key="value",otel_scope_name="my-app"} 1
+//! // a_histogram_bucket{le="500.0",key="value",otel_scope_name="my-app"} 1
+//! // a_histogram_bucket{le="750.0",key="value",otel_scope_name="my-app"} 1
+//! // a_histogram_bucket{le="1000.0",key="value",otel_scope_name="my-app"} 1
+//! // a_histogram_bucket{le="2500.0",key="value",otel_scope_name="my-app"} 1
+//! // a_histogram_bucket{le="5000.0",key="value",otel_scope_name="my-app"} 1
+//! // a_histogram_bucket{le="7500.0",key="value",otel_scope_name="my-app"} 1
+//! // a_histogram_bucket{le="10000.0",key="value",otel_scope_name="my-app"} 1
+//! // a_histogram_bucket{le="+Inf",key="value",otel_scope_name="my-app"} 1
 //! // # HELP target_info Target metadata
 //! // # TYPE target_info gauge
-//! // target_info{service_name="unknown_service"} 1
+//! // target_info{service_name="unknown_service"} 1.0
+//! // # EOF
 //! # Ok(())
 //! # }
 //! ```
@@ -95,11 +92,11 @@ use opentelemetry_sdk::{
         reader::MetricReader,
         InstrumentKind, ManualReader, Pipeline, Temporality,
     },
-    Resource,
 };
-use prometheus::{
-    core::Desc,
-    proto::{LabelPair, MetricFamily, MetricType},
+use prometheus_client::{
+    encoding::{DescriptorEncoder, NoLabelSet},
+    metrics::MetricType,
+    registry::Unit,
 };
 use std::{
     borrow::Cow,
@@ -121,8 +118,10 @@ const RESERVED_SCOPE_LABELS: [&str; 3] = [
     SCOPE_SCHEMA_URL_LABEL,
 ];
 
-// prometheus counters MUST have a _total suffix by default:
+// prometheus counters MUST have a _total suffix:
 // https://github.com/open-telemetry/opentelemetry-specification/blob/v1.20.0/specification/compatibility/prometheus_and_openmetrics.md
+// The OpenMetrics encoder appends it to counter samples; it is only used here to
+// detect name conflicts between exposed sample names.
 const COUNTER_SUFFIX: &str = "_total";
 
 mod config;
@@ -167,102 +166,72 @@ impl MetricReader for PrometheusExporter {
     }
 }
 
+/// A set of Prometheus label name/value pairs.
+type Labels = Vec<(String, String)>;
+
+#[derive(Debug)]
+enum PointValue {
+    Counter(f64),
+    Gauge(f64),
+    Histogram {
+        sum: f64,
+        count: u64,
+        /// Non-cumulative `(upper_bound, count)` pairs, ending with `+Inf`.
+        buckets: Vec<(f64, u64)>,
+    },
+}
+
+/// A metric family to be encoded, holding all of its data points.
+#[derive(Debug)]
+struct Family {
+    /// Name without the unit suffix, which the encoder appends.
+    name: String,
+    help: String,
+    unit: Option<Unit>,
+    kind: MetricType,
+    points: Vec<(Labels, PointValue)>,
+}
+
+#[derive(Debug)]
 struct Collector {
     reader: Arc<ManualReader>,
     disable_target_info: bool,
     without_units: bool,
-    without_counter_suffixes: bool,
     scope_info_enabled: bool,
-    create_target_info_once: OnceCell<MetricFamily>,
-    resource_labels_once: OnceCell<Vec<LabelPair>>,
+    create_target_info_once: OnceCell<Labels>,
+    resource_labels_once: OnceCell<Labels>,
     namespace: Option<String>,
     inner: Mutex<CollectorInner>,
     resource_selector: ResourceSelector,
 }
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 struct CollectorInner {
-    metric_families: HashMap<String, MetricFamily>,
+    /// Type and description of every exposed metric name seen so far.
+    metric_families: HashMap<String, (MetricType, String)>,
 }
 
 impl Collector {
-    fn metric_type_and_name(&self, m: &data::Metric) -> Option<(MetricType, Cow<'static, str>)> {
-        let mut name = self.get_name(m);
-
-        let result = match m.data() {
-            data::AggregatedMetrics::F64(metric_data) => match metric_data {
-                data::MetricData::Histogram(_) => Some(MetricType::HISTOGRAM),
-                data::MetricData::Gauge(_) => Some(MetricType::GAUGE),
-                data::MetricData::Sum(sum) => {
-                    if sum.is_monotonic() {
-                        if !self.without_counter_suffixes {
-                            name = format!("{name}{COUNTER_SUFFIX}").into();
-                        }
-                        Some(MetricType::COUNTER)
-                    } else {
-                        Some(MetricType::GAUGE)
-                    }
-                }
-                data::MetricData::ExponentialHistogram(_) => None,
-            },
-            data::AggregatedMetrics::I64(metric_data) => match metric_data {
-                data::MetricData::Histogram(_) => Some(MetricType::HISTOGRAM),
-                data::MetricData::Gauge(_) => Some(MetricType::GAUGE),
-                data::MetricData::Sum(sum) => {
-                    if sum.is_monotonic() {
-                        if !self.without_counter_suffixes {
-                            name = format!("{name}{COUNTER_SUFFIX}").into();
-                        }
-                        Some(MetricType::COUNTER)
-                    } else {
-                        Some(MetricType::GAUGE)
-                    }
-                }
-                data::MetricData::ExponentialHistogram(_) => None,
-            },
-            data::AggregatedMetrics::U64(metric_data) => match metric_data {
-                data::MetricData::Histogram(_) => Some(MetricType::HISTOGRAM),
-                data::MetricData::Gauge(_) => Some(MetricType::GAUGE),
-                data::MetricData::Sum(sum) => {
-                    if sum.is_monotonic() {
-                        if !self.without_counter_suffixes {
-                            name = format!("{name}{COUNTER_SUFFIX}").into();
-                        }
-                        Some(MetricType::COUNTER)
-                    } else {
-                        Some(MetricType::GAUGE)
-                    }
-                }
-                data::MetricData::ExponentialHistogram(_) => None,
-            },
-        };
-
-        result.map(|metric_type| (metric_type, name))
-    }
-
-    fn get_name(&self, m: &data::Metric) -> Cow<'static, str> {
+    /// Returns the metric name (with namespace, without unit) and the unit suffix.
+    fn get_name(&self, m: &data::Metric) -> (Cow<'static, str>, Option<Cow<'static, str>>) {
         let name: Cow<'static, str> = Cow::Owned(m.name().to_string());
         let name = utils::sanitize_name(&name);
-        let unit_suffixes = if self.without_units {
+        let unit_suffix = if self.without_units {
             None
         } else {
             utils::get_unit_suffixes(m.unit())
         };
-        match (&self.namespace, unit_suffixes) {
-            (Some(namespace), Some(suffix)) => Cow::Owned(format!("{namespace}{name}_{suffix}")),
-            (Some(namespace), None) => Cow::Owned(format!("{namespace}{name}")),
-            (None, Some(suffix)) => Cow::Owned(format!("{name}_{suffix}")),
-            (None, None) => name,
-        }
-    }
-}
-
-impl prometheus::core::Collector for Collector {
-    fn desc(&self) -> Vec<&Desc> {
-        Vec::new()
+        let name = match &self.namespace {
+            Some(namespace) => Cow::Owned(format!("{namespace}{name}")),
+            None => name,
+        };
+        (name, unit_suffix)
     }
 
-    fn collect(&self) -> Vec<MetricFamily> {
+    /// Collects metrics from the reader and groups them into families keyed by name.
+    fn collect_families(&self) -> BTreeMap<String, Family> {
+        let mut families = BTreeMap::new();
+
         let mut inner = match self.inner.lock() {
             Ok(guard) => guard,
             Err(err) => {
@@ -270,7 +239,7 @@ impl prometheus::core::Collector for Collector {
                     name: "MetricScrapeFailed",
                     message = err.to_string(),
                 );
-                return Vec::new();
+                return families;
             }
         };
 
@@ -280,21 +249,24 @@ impl prometheus::core::Collector for Collector {
                 name: "MetricScrapeFailed",
                 message = err.to_string(),
             );
-            return vec![];
+            return families;
         }
-        let mut res = Vec::with_capacity(metrics.scope_metrics().count() + 1);
 
         let target_info = self.create_target_info_once.get_or_init(|| {
             // Resource should be immutable, we don't need to compute again
-            create_info_metric(
-                TARGET_INFO_NAME,
-                TARGET_INFO_DESCRIPTION,
-                metrics.resource(),
-            )
+            get_attrs(&mut metrics.resource().iter(), &[])
         });
 
         if !self.disable_target_info && !metrics.resource().is_empty() {
-            res.push(target_info.clone())
+            insert_into_family(
+                &mut families,
+                TARGET_INFO_NAME.to_string(),
+                TARGET_INFO_NAME,
+                TARGET_INFO_DESCRIPTION.to_string(),
+                None,
+                MetricType::Gauge,
+                (target_info.clone(), PointValue::Gauge(1.0)),
+            );
         }
 
         let resource_labels = self
@@ -309,62 +281,206 @@ impl prometheus::core::Collector for Collector {
             };
             scope_labels.extend(resource_labels.iter().cloned());
 
-            for metrics in scope_metrics.metrics() {
-                let (metric_type, name) = match self.metric_type_and_name(metrics) {
-                    Some((metric_type, name)) => (metric_type, name),
-                    _ => continue,
+            for metric in scope_metrics.metrics() {
+                let Some(kind) = prometheus_metric_type(metric) else {
+                    continue;
+                };
+                let (name, unit_suffix) = self.get_name(metric);
+
+                let family_name = match &unit_suffix {
+                    Some(suffix) => format!("{name}_{suffix}"),
+                    None => name.to_string(),
+                };
+                // Validate against the exposed sample name, which includes the
+                // `_total` suffix for counters.
+                let exposed_name = if matches!(kind, MetricType::Counter) {
+                    format!("{family_name}{COUNTER_SUFFIX}")
+                } else {
+                    family_name.clone()
                 };
 
                 let mfs = &mut inner.metric_families;
-                let (drop, help) = validate_metrics(&name, metrics.description(), metric_type, mfs);
+                let (drop, help) = validate_metrics(&exposed_name, metric.description(), kind, mfs);
                 if drop {
                     continue;
                 }
 
-                let description = help.unwrap_or_else(|| metrics.description().into());
+                let description = help.unwrap_or_else(|| metric.description().into());
+                let unit = unit_suffix.map(|suffix| Unit::Other(suffix.into_owned()));
 
-                match metrics.data() {
-                    data::AggregatedMetrics::F64(metric_data) => match metric_data {
-                        data::MetricData::Histogram(hist) => {
-                            add_histogram_metric(&mut res, hist, description, &scope_labels, name);
-                        }
-                        data::MetricData::Sum(sum) => {
-                            add_sum_metric(&mut res, sum, description, &scope_labels, name);
-                        }
-                        data::MetricData::Gauge(gauge) => {
-                            add_gauge_metric(&mut res, gauge, description, &scope_labels, name);
-                        }
-                        data::MetricData::ExponentialHistogram(_) => {}
-                    },
-                    data::AggregatedMetrics::I64(metric_data) => match metric_data {
-                        data::MetricData::Histogram(hist) => {
-                            add_histogram_metric(&mut res, hist, description, &scope_labels, name);
-                        }
-                        data::MetricData::Sum(sum) => {
-                            add_sum_metric(&mut res, sum, description, &scope_labels, name);
-                        }
-                        data::MetricData::Gauge(gauge) => {
-                            add_gauge_metric(&mut res, gauge, description, &scope_labels, name);
-                        }
-                        data::MetricData::ExponentialHistogram(_) => {}
-                    },
-                    data::AggregatedMetrics::U64(metric_data) => match metric_data {
-                        data::MetricData::Histogram(hist) => {
-                            add_histogram_metric(&mut res, hist, description, &scope_labels, name);
-                        }
-                        data::MetricData::Sum(sum) => {
-                            add_sum_metric(&mut res, sum, description, &scope_labels, name);
-                        }
-                        data::MetricData::Gauge(gauge) => {
-                            add_gauge_metric(&mut res, gauge, description, &scope_labels, name);
-                        }
-                        data::MetricData::ExponentialHistogram(_) => {}
-                    },
+                let mut add = |point| {
+                    insert_into_family(
+                        &mut families,
+                        family_name.clone(),
+                        &name,
+                        description.clone(),
+                        unit.clone(),
+                        kind,
+                        point,
+                    )
+                };
+
+                match metric.data() {
+                    data::AggregatedMetrics::F64(metric_data) => {
+                        for_each_point(metric_data, &scope_labels, &mut add)
+                    }
+                    data::AggregatedMetrics::I64(metric_data) => {
+                        for_each_point(metric_data, &scope_labels, &mut add)
+                    }
+                    data::AggregatedMetrics::U64(metric_data) => {
+                        for_each_point(metric_data, &scope_labels, &mut add)
+                    }
                 }
             }
         }
 
-        res
+        families
+    }
+}
+
+impl prometheus_client::collector::Collector for Collector {
+    fn encode(&self, mut encoder: DescriptorEncoder<'_>) -> Result<(), fmt::Error> {
+        for mut family in self.collect_families().into_values() {
+            // Sort data points lexicographically by their label values for a
+            // stable output.
+            family.points.sort_by(|(left, _), (right, _)| {
+                left.len().cmp(&right.len()).then_with(|| {
+                    left.iter()
+                        .map(|(_, v)| v)
+                        .cmp(right.iter().map(|(_, v)| v))
+                })
+            });
+
+            let mut metric_encoder = encoder.encode_descriptor(
+                &family.name,
+                &family.help,
+                family.unit.as_ref(),
+                family.kind,
+            )?;
+
+            for (labels, value) in &family.points {
+                let mut point_encoder = metric_encoder.encode_family(labels)?;
+                match value {
+                    PointValue::Counter(v) => {
+                        point_encoder.encode_counter::<NoLabelSet, _, f64>(v, None)?
+                    }
+                    PointValue::Gauge(v) => point_encoder.encode_gauge(v)?,
+                    PointValue::Histogram {
+                        sum,
+                        count,
+                        buckets,
+                    } => {
+                        point_encoder.encode_histogram::<NoLabelSet>(*sum, *count, buckets, None)?
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+}
+
+/// Maps an OpenTelemetry metric to its Prometheus metric type.
+///
+/// Returns `None` for metrics that cannot be exported (exponential histograms).
+fn prometheus_metric_type(m: &data::Metric) -> Option<MetricType> {
+    fn kind<T>(metric_data: &data::MetricData<T>) -> Option<MetricType> {
+        match metric_data {
+            data::MetricData::Histogram(_) => Some(MetricType::Histogram),
+            data::MetricData::Gauge(_) => Some(MetricType::Gauge),
+            data::MetricData::Sum(sum) if sum.is_monotonic() => Some(MetricType::Counter),
+            data::MetricData::Sum(_) => Some(MetricType::Gauge),
+            data::MetricData::ExponentialHistogram(_) => None,
+        }
+    }
+
+    match m.data() {
+        data::AggregatedMetrics::F64(metric_data) => kind(metric_data),
+        data::AggregatedMetrics::I64(metric_data) => kind(metric_data),
+        data::AggregatedMetrics::U64(metric_data) => kind(metric_data),
+    }
+}
+
+/// Adds a data point to the family keyed by `family_name` (the name including the
+/// unit suffix), creating the family if needed.
+///
+/// If a family with the same name but a different type already exists, the data
+/// point is dropped, as a family can only have a single type.
+fn insert_into_family(
+    families: &mut BTreeMap<String, Family>,
+    family_name: String,
+    name: &str,
+    help: String,
+    unit: Option<Unit>,
+    kind: MetricType,
+    point: (Labels, PointValue),
+) {
+    let family = families.entry(family_name).or_insert_with(|| Family {
+        name: name.to_string(),
+        help,
+        unit,
+        kind,
+        points: Vec::new(),
+    });
+
+    if family.kind.as_str() != kind.as_str() {
+        otel_warn!(
+            name: "MetricValidationFailed",
+            message = "Instrument type conflict, using existing type definition",
+            metric_type = format!("Instrument {}, Existing: {:?}, dropped: {:?}", family.name, family.kind, kind).as_str(),
+        );
+        return;
+    }
+
+    family.points.push(point);
+}
+
+/// Converts each data point of a metric into a Prometheus data point and passes it to `add`.
+fn for_each_point<T: Numeric + Copy>(
+    metric_data: &data::MetricData<T>,
+    extra: &[(String, String)],
+    add: &mut dyn FnMut((Labels, PointValue)),
+) {
+    match metric_data {
+        data::MetricData::Histogram(histogram) => {
+            // Consider supporting exemplars, which `prometheus-client` supports.
+            for dp in histogram.data_points() {
+                let labels = get_attrs(&mut dp.attributes().map(|kv| (&kv.key, &kv.value)), extra);
+                // OTel bucket counts are non-cumulative, with one more bucket than
+                // bounds; the last bucket is the `+Inf` overflow bucket.
+                let buckets = dp
+                    .bounds()
+                    .chain(std::iter::once(f64::INFINITY))
+                    .zip(dp.bucket_counts())
+                    .collect();
+                add((
+                    labels,
+                    PointValue::Histogram {
+                        sum: dp.sum().as_f64(),
+                        count: dp.count(),
+                        buckets,
+                    },
+                ));
+            }
+        }
+        data::MetricData::Sum(sum) => {
+            for dp in sum.data_points() {
+                let labels = get_attrs(&mut dp.attributes().map(|kv| (&kv.key, &kv.value)), extra);
+                let value = if sum.is_monotonic() {
+                    PointValue::Counter(dp.value().as_f64())
+                } else {
+                    PointValue::Gauge(dp.value().as_f64())
+                };
+                add((labels, value));
+            }
+        }
+        data::MetricData::Gauge(gauge) => {
+            for dp in gauge.data_points() {
+                let labels = get_attrs(&mut dp.attributes().map(|kv| (&kv.key, &kv.value)), extra);
+                add((labels, PointValue::Gauge(dp.value().as_f64())));
+            }
+        }
+        data::MetricData::ExponentialHistogram(_) => {}
     }
 }
 
@@ -372,20 +488,19 @@ impl prometheus::core::Collector for Collector {
 ///
 /// It sanitizes invalid characters and handles duplicate keys (due to
 /// sanitization) by sorting and concatenating the values following the spec.
-fn get_attrs(kvs: &mut dyn Iterator<Item = (&Key, &Value)>, extra: &[LabelPair]) -> Vec<LabelPair> {
+fn get_attrs(kvs: &mut dyn Iterator<Item = (&Key, &Value)>, extra: &[(String, String)]) -> Labels {
     let mut keys_map = BTreeMap::<String, Vec<(String, String)>>::new();
     let mut extra_keys_map = BTreeMap::<String, Vec<(String, String)>>::new();
     let mut extra_key_order = Vec::with_capacity(extra.len());
 
-    for label in extra {
-        let key = label.name().to_string();
-        if !extra_keys_map.contains_key(&key) {
+    for (key, value) in extra {
+        if !extra_keys_map.contains_key(key) {
             extra_key_order.push(key.clone());
         }
         extra_keys_map
             .entry(key.clone())
-            .and_modify(|values| values.push((key.clone(), label.value().to_string())))
-            .or_insert_with(|| vec![(key, label.value().to_string())]);
+            .and_modify(|values| values.push((key.clone(), value.clone())))
+            .or_insert_with(|| vec![(key.clone(), value.clone())]);
     }
 
     for (key, value) in kvs {
@@ -406,17 +521,14 @@ fn get_attrs(kvs: &mut dyn Iterator<Item = (&Key, &Value)>, extra: &[LabelPair])
 
     for (key, mut values) in keys_map.into_iter() {
         values.sort_by(|(left_key, _), (right_key, _)| left_key.cmp(right_key));
-
-        let mut lp = LabelPair::default();
-        lp.set_name(key);
-        lp.set_value(
+        res.push(label_pair(
+            key,
             values
                 .into_iter()
                 .map(|(_, value)| value)
                 .collect::<Vec<_>>()
                 .join(";"),
-        );
-        res.push(lp);
+        ));
     }
 
     for key in extra_key_order {
@@ -436,7 +548,7 @@ fn get_attrs(kvs: &mut dyn Iterator<Item = (&Key, &Value)>, extra: &[LabelPair])
     res
 }
 
-fn get_scope_labels(scope: &InstrumentationScope) -> Vec<LabelPair> {
+fn get_scope_labels(scope: &InstrumentationScope) -> Labels {
     let mut labels = Vec::with_capacity(
         1 + scope.version().is_some() as usize
             + scope.schema_url().is_some() as usize
@@ -475,174 +587,39 @@ fn get_scope_labels(scope: &InstrumentationScope) -> Vec<LabelPair> {
     labels
 }
 
-fn label_pair(name: impl Into<String>, value: impl Into<String>) -> LabelPair {
-    let mut label = LabelPair::default();
-    label.set_name(name.into());
-    label.set_value(value.into());
-    label
+fn label_pair(name: impl Into<String>, value: impl Into<String>) -> (String, String) {
+    (name.into(), value.into())
 }
 
 fn validate_metrics(
     name: &str,
     description: &str,
-    metric_type: MetricType,
-    mfs: &mut HashMap<String, MetricFamily>,
+    metric_kind: MetricType,
+    mfs: &mut HashMap<String, (MetricType, String)>,
 ) -> (bool, Option<String>) {
-    if let Some(existing) = mfs.get(name) {
-        if existing.get_field_type() != metric_type {
+    if let Some((existing_kind, existing_help)) = mfs.get(name) {
+        if existing_kind.as_str() != metric_kind.as_str() {
             otel_warn!(
                 name: "MetricValidationFailed",
                 message = "Instrument type conflict, using existing type definition",
-                metric_type = format!("Instrument {name}, Existing: {:?}, dropped: {:?}", existing.get_field_type(), metric_type).as_str(),
+                metric_type = format!("Instrument {name}, Existing: {:?}, dropped: {:?}", existing_kind, metric_kind).as_str(),
             );
             return (true, None);
         }
-        if existing.help() != description {
+        if existing_help != description {
             otel_warn!(
                 name: "MetricValidationFailed",
                 message = "Instrument description conflict, using existing",
-                metric_description = format!("Instrument {name}, Existing: {:?}, dropped: {:?}", existing.help().to_string(), description.to_string()).as_str(),
+                metric_description = format!("Instrument {name}, Existing: {:?}, dropped: {:?}", existing_help, description).as_str(),
             );
-            return (false, Some(existing.help().to_string()));
+            return (false, Some(existing_help.clone()));
         }
         (false, None)
     } else {
-        let mut mf = MetricFamily::default();
-        mf.set_name(name.into());
-        mf.set_help(description.to_string());
-        mf.set_field_type(metric_type);
-        mfs.insert(name.to_string(), mf);
+        mfs.insert(name.to_string(), (metric_kind, description.to_string()));
 
         (false, None)
     }
-}
-
-fn add_histogram_metric<T: Numeric + Copy>(
-    res: &mut Vec<MetricFamily>,
-    histogram: &data::Histogram<T>,
-    description: String,
-    extra: &[LabelPair],
-    name: Cow<'static, str>,
-) {
-    // Consider supporting exemplars when `prometheus` crate has the feature
-    // See: https://github.com/tikv/rust-prometheus/issues/393
-
-    for dp in histogram.data_points() {
-        let kvs = get_attrs(&mut dp.attributes().map(|kv| (&kv.key, &kv.value)), extra);
-        let bounds: Vec<f64> = dp.bounds().collect();
-        let bucket_counts: Vec<u64> = dp.bucket_counts().collect();
-        let bounds_len = bounds.len();
-        let (bucket, _) = bounds.iter().enumerate().fold(
-            (Vec::with_capacity(bounds_len), 0),
-            |(mut acc, mut count), (i, bound)| {
-                count += bucket_counts[i];
-
-                let mut b = prometheus::proto::Bucket::default();
-                b.set_upper_bound(*bound);
-                b.set_cumulative_count(count);
-                acc.push(b);
-                (acc, count)
-            },
-        );
-
-        let mut h = prometheus::proto::Histogram::default();
-        h.set_sample_sum(dp.sum().as_f64());
-        h.set_sample_count(dp.count());
-        h.set_bucket(bucket);
-        let mut pm = prometheus::proto::Metric::default();
-        pm.set_label(kvs);
-        pm.set_histogram(h);
-
-        let mut mf = prometheus::proto::MetricFamily::default();
-        mf.set_name(name.to_string());
-        mf.set_help(description.clone());
-        mf.set_field_type(prometheus::proto::MetricType::HISTOGRAM);
-        mf.set_metric(vec![pm]);
-        res.push(mf);
-    }
-}
-
-fn add_sum_metric<T: Numeric + Copy>(
-    res: &mut Vec<MetricFamily>,
-    sum: &data::Sum<T>,
-    description: String,
-    extra: &[LabelPair],
-    name: Cow<'static, str>,
-) {
-    let metric_type = if sum.is_monotonic() {
-        MetricType::COUNTER
-    } else {
-        MetricType::GAUGE
-    };
-
-    for dp in sum.data_points() {
-        let kvs = get_attrs(&mut dp.attributes().map(|kv| (&kv.key, &kv.value)), extra);
-
-        let mut pm = prometheus::proto::Metric::default();
-        pm.set_label(kvs);
-
-        if sum.is_monotonic() {
-            let mut c = prometheus::proto::Counter::default();
-            c.set_value(dp.value().as_f64());
-            pm.set_counter(c);
-        } else {
-            let mut g = prometheus::proto::Gauge::default();
-            g.set_value(dp.value().as_f64());
-            pm.set_gauge(g);
-        }
-
-        let mut mf = prometheus::proto::MetricFamily::default();
-        mf.set_name(name.to_string());
-        mf.set_help(description.clone());
-        mf.set_field_type(metric_type);
-        mf.set_metric(vec![pm]);
-        res.push(mf);
-    }
-}
-
-fn add_gauge_metric<T: Numeric + Copy>(
-    res: &mut Vec<MetricFamily>,
-    gauge: &data::Gauge<T>,
-    description: String,
-    extra: &[LabelPair],
-    name: Cow<'static, str>,
-) {
-    for dp in gauge.data_points() {
-        let kvs = get_attrs(&mut dp.attributes().map(|kv| (&kv.key, &kv.value)), extra);
-
-        let mut g = prometheus::proto::Gauge::default();
-        g.set_value(dp.value().as_f64());
-        let mut pm = prometheus::proto::Metric::default();
-        pm.set_label(kvs);
-        pm.set_gauge(g);
-
-        let mut mf = prometheus::proto::MetricFamily::default();
-        mf.set_name(name.to_string());
-        mf.set_help(description.to_string());
-        mf.set_field_type(MetricType::GAUGE);
-        mf.set_metric(vec![pm]);
-        res.push(mf);
-    }
-}
-
-fn create_info_metric(
-    target_info_name: &str,
-    target_info_description: &str,
-    resource: &Resource,
-) -> MetricFamily {
-    let mut g = prometheus::proto::Gauge::default();
-    g.set_value(1.0);
-
-    let mut m = prometheus::proto::Metric::default();
-    m.set_label(get_attrs(&mut resource.iter(), &[]));
-    m.set_gauge(g);
-
-    let mut mf = MetricFamily::default();
-    mf.set_name(target_info_name.into());
-    mf.set_help(target_info_description.into());
-    mf.set_field_type(MetricType::GAUGE);
-    mf.set_metric(vec![m]);
-    mf
 }
 
 trait Numeric: fmt::Debug {
