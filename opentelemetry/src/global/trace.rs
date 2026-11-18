@@ -64,10 +64,10 @@ pub trait ObjectSafeSpan {
     /// Sets the status of the `Span`. `message` MUST be ignored when the status is `OK` or
     /// `Unset`.
     ///
-    /// The order of status is `Ok` > `Error` > `Unset`. That's means set the status
-    /// to `Unset` will always be ignore, set the status to `Error` only works when current
-    /// status is `Unset`, set the status to `Ok` will be consider final and any further call
-    /// to this function will be ignore.
+    /// The order of status is `Ok` > `Error` > `Unset`. Setting the status to `Unset` is
+    /// always ignored. Setting it to `Error` replaces the current status unless that status
+    /// is `Ok`, so the latest error is kept. Setting it to `Ok` is final, and any further
+    /// call to this function is ignored.
     fn set_status(&mut self, status: Status);
 
     /// Updates the `Span`'s name. After this update, any sampling behavior based on the

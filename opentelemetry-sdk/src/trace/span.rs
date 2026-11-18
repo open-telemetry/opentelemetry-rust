@@ -286,9 +286,9 @@ impl opentelemetry::trace::Span for Span {
     /// If used, this will override the default span status, which is [`Status::Unset`].
     fn set_status(&mut self, status: Status) {
         self.with_data(|data| {
-            // check if we should update the status
-            // These values form a total order: Ok > Error > Unset.
-            if status > data.status {
+            // Ok is final and Unset is ignored. Otherwise the latest status wins,
+            // so a later Error replaces an earlier one whatever its description.
+            if data.status != Status::Ok && status != Status::Unset {
                 data.status = status;
             }
         });
@@ -693,6 +693,20 @@ mod tests {
             span.set_status(Status::Unset);
             span.set_status(Status::error("error"));
             span.with_data(|data| assert_ne!(data.status, Status::Ok));
+        }
+        {
+            let mut span = create_span();
+            // the last error is recorded, whatever the order of the descriptions
+            span.set_status(Status::error("timeout"));
+            span.set_status(Status::error("connection refused"));
+            span.with_data(|data| assert_eq!(data.status, Status::error("connection refused")));
+        }
+        {
+            let mut span = create_span();
+            // unset does not clear an error
+            span.set_status(Status::error("error"));
+            span.set_status(Status::Unset);
+            span.with_data(|data| assert_eq!(data.status, Status::error("error")));
         }
     }
 
