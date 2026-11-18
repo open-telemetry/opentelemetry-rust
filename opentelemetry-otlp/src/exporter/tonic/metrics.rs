@@ -38,8 +38,16 @@ impl TonicMetricsClient {
         compression: Option<CompressionEncoding>,
         retry_policy: Option<RetryPolicy>,
         timeout: std::time::Duration,
+        max_encoding_message_size: Option<usize>,
+        max_decoding_message_size: Option<usize>,
     ) -> Self {
         let mut client = MetricsServiceClient::new(channel);
+        if let Some(limit) = max_encoding_message_size {
+            client = client.max_encoding_message_size(limit);
+        }
+        if let Some(limit) = max_decoding_message_size {
+            client = client.max_decoding_message_size(limit);
+        }
         if let Some(compression) = compression {
             client = client
                 .send_compressed(compression)
