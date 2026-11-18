@@ -1,5 +1,5 @@
-use chrono::{DateTime, Utc};
 use core::fmt;
+use jiff::Timestamp;
 use opentelemetry_sdk::error::{OTelSdkError, OTelSdkResult};
 use opentelemetry_sdk::logs::LogBatch;
 use opentelemetry_sdk::Resource;
@@ -88,17 +88,23 @@ fn print_logs(batch: LogBatch<'_>) {
                 println!("\t TraceFlags: {trace_flags:?}");
             }
         }
+
         if let Some(timestamp) = record.timestamp() {
-            let datetime: DateTime<Utc> = timestamp.into();
-            println!("\t Timestamp: {}", datetime.format("%Y-%m-%d %H:%M:%S%.6f"));
-        }
-        if let Some(timestamp) = record.observed_timestamp() {
-            let datetime: DateTime<Utc> = timestamp.into();
+            let datetime: Timestamp = timestamp.try_into().unwrap();
             println!(
-                "\t Observed Timestamp: {}",
-                datetime.format("%Y-%m-%d %H:%M:%S%.6f")
+                "\t Timestamp: {}",
+                datetime.strftime("%Y-%m-%d %H:%M:%S%.6f")
             );
         }
+
+        if let Some(timestamp) = record.observed_timestamp() {
+            let datetime: Timestamp = timestamp.try_into().unwrap();
+            println!(
+                "\t Observed Timestamp: {}",
+                datetime.strftime("%Y-%m-%d %H:%M:%S%.6f")
+            );
+        }
+
         if let Some(severity) = record.severity_text() {
             println!("\t SeverityText: {severity:?}");
         }

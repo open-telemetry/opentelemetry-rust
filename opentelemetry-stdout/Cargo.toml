@@ -27,9 +27,9 @@ metrics = ["opentelemetry/metrics", "opentelemetry_sdk/metrics"]
 logs = ["opentelemetry/logs", "opentelemetry_sdk/logs"]
 
 [dependencies]
-chrono = { workspace = true, features = ["now"] }
 opentelemetry = { workspace = true }
 opentelemetry_sdk = { workspace = true }
+jiff = { workspace = true }
 
 [dev-dependencies]
 opentelemetry-appender-tracing = { workspace = true }
