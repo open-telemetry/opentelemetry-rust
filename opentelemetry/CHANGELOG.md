@@ -2,6 +2,9 @@
 
 ## vNext
 
+- Fix a panic on wasm64 (`wasm64-unknown-unknown`): `time::now()`
+  now reads the browser clock on every wasm target, not only wasm32.
+
 - Added `TraceFlags::RANDOM`, `TraceFlags::is_random`, `TraceFlags::with_random`, and
   `SpanContext::is_random` for the W3C Trace Context Level 2 `random-trace-id` flag
   ([#3270](https://github.com/open-telemetry/opentelemetry-rust/issues/3270)).
