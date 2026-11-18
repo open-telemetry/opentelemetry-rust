@@ -166,9 +166,16 @@ impl opentelemetry::trace::Tracer for SdkTracer {
     /// trace includes a single root span, which is the shared ancestor of all other
     /// spans in the trace.
     fn build_with_context(&self, builder: SpanBuilder, parent_cx: &Context) -> Self::Span {
-        let provider = self.provider();
-        if parent_cx.is_telemetry_suppressed() || provider.is_shutdown() {
+        if parent_cx.is_telemetry_suppressed() {
             return Span::new_non_recording(SpanContext::empty_context(), self);
+        }
+
+        let provider = self.provider();
+        // no point start a span if the tracer provider has already being shutdown or disabled.
+        // the parent span context is carried forward as the spec requires of a no-op API:
+        // https://opentelemetry.io/docs/specs/otel/trace/api/#behavior-of-the-api-in-the-absence-of-an-installed-sdk
+        if provider.is_shutdown() || provider.is_disabled() {
+            return Span::new_non_recording(parent_cx.span().span_context().clone(), self);
         }
 
         let config = provider.config();
