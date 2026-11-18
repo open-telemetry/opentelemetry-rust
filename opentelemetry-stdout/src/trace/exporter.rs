@@ -1,10 +1,10 @@
-use chrono::{DateTime, Utc};
+use crate::TIME_FORMAT;
 use core::fmt;
 use opentelemetry_sdk::error::{OTelSdkError, OTelSdkResult};
+use opentelemetry_sdk::resource::Resource;
 use opentelemetry_sdk::trace::SpanData;
 use std::sync::atomic::{AtomicBool, Ordering};
-
-use opentelemetry_sdk::resource::Resource;
+use time::UtcDateTime;
 
 /// An OpenTelemetry exporter that writes Spans to stdout on export.
 pub struct SpanExporter {
@@ -102,16 +102,10 @@ fn print_spans(batch: Vec<SpanData>) {
         }
         println!("\tKind         : {:?}", span.span_kind);
 
-        let datetime: DateTime<Utc> = span.start_time.into();
-        println!(
-            "\tStart time   : {}",
-            datetime.format("%Y-%m-%d %H:%M:%S%.6f")
-        );
-        let datetime: DateTime<Utc> = span.end_time.into();
-        println!(
-            "\tEnd time     : {}",
-            datetime.format("%Y-%m-%d %H:%M:%S%.6f")
-        );
+        let datetime: UtcDateTime = span.start_time.into();
+        println!("\tStart time   : {}", datetime.format(TIME_FORMAT).unwrap());
+        let datetime: UtcDateTime = span.end_time.into();
+        println!("\tEnd time     : {}", datetime.format(TIME_FORMAT).unwrap());
         println!("\tStatus       : {:?}", span.status);
 
         let mut print_header = true;
@@ -129,8 +123,8 @@ fn print_spans(batch: Vec<SpanData>) {
             }
             println!("\tEvent #{index}");
             println!("\tName      : {}", event.name);
-            let datetime: DateTime<Utc> = event.timestamp.into();
-            println!("\tTimestamp : {}", datetime.format("%Y-%m-%d %H:%M:%S%.6f"));
+            let datetime: UtcDateTime = event.timestamp.into();
+            println!("\tTimestamp : {}", datetime.format(TIME_FORMAT).unwrap());
 
             event.attributes.iter().enumerate().for_each(|(index, kv)| {
                 if index == 0 {
