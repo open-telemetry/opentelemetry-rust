@@ -70,6 +70,14 @@ impl<'a, LR: LogRecord> EventVisitor<'a, LR> {
     }
 }
 
+fn error_source_messages(error: &(dyn std::error::Error + 'static)) -> Option<AnyValue> {
+    let source = error.source()?;
+    let source_messages = std::iter::successors(Some(source), |source| source.source())
+        .map(|source| source.to_string())
+        .collect();
+    Some(source_messages)
+}
+
 impl<LR: LogRecord> tracing::field::Visit for EventVisitor<'_, LR> {
     fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
         #[cfg(feature = "experimental_metadata_attributes")]
@@ -93,6 +101,10 @@ impl<LR: LogRecord> tracing::field::Visit for EventVisitor<'_, LR> {
             Key::new("exception.message"),
             AnyValue::from(value.to_string()),
         );
+        if let Some(source_messages) = error_source_messages(value) {
+            self.log_record
+                .add_attribute(Key::new("exception.cause.messages"), source_messages);
+        }
         // No ability to get exception.stacktrace or exception.type from the error today.
     }
 
@@ -221,6 +233,10 @@ impl tracing::field::Visit for SpanFieldVisitor<'_> {
                 Key::new("exception.message"),
                 AnyValue::from(value.to_string()),
             ));
+            if let Some(source_messages) = error_source_messages(value) {
+                self.attributes
+                    .push((Key::new("exception.cause.messages"), source_messages));
+            }
         }
     }
 
@@ -646,6 +662,80 @@ mod tests {
             layer::OpenTelemetryTracingBridge::new(logger_provider).with_filter(level_filter); // No filter based on target, only based on log level
 
         tracing_subscriber::registry().with(layer)
+    }
+
+    #[derive(Debug)]
+    struct ReadPageError(OTelSdkError);
+
+    impl std::fmt::Display for ReadPageError {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.write_str("the page is unreadable")
+        }
+    }
+
+    impl std::error::Error for ReadPageError {
+        fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+            Some(&self.0)
+        }
+    }
+
+    #[test]
+    fn tracing_appender_error_cause_messages_lists_sources() {
+        let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
+        let logger_provider = SdkLoggerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
+        let subscriber = create_tracing_subscriber(&logger_provider);
+        let _guard = tracing::subscriber::set_default(subscriber);
+
+        let error = ReadPageError(OTelSdkError::AlreadyShutdown);
+        error!(error = &error as &dyn std::error::Error, "page read failed");
+        assert!(logger_provider.force_flush().is_ok());
+
+        let exported_logs = exporter
+            .get_emitted_logs()
+            .expect("Logs are expected to be exported.");
+        let log = exported_logs
+            .first()
+            .expect("Atleast one log is expected to be present.");
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("exception.message"),
+            &AnyValue::from("the page is unreadable")
+        ));
+        let expected_cause_messages =
+            AnyValue::from_iter([OTelSdkError::AlreadyShutdown.to_string()]);
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("exception.cause.messages"),
+            &expected_cause_messages
+        ));
+    }
+
+    #[test]
+    fn tracing_appender_error_without_sources_omits_cause_messages() {
+        let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
+        let logger_provider = SdkLoggerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
+        let subscriber = create_tracing_subscriber(&logger_provider);
+        let _guard = tracing::subscriber::set_default(subscriber);
+
+        let error = OTelSdkError::AlreadyShutdown;
+        error!(error = &error as &dyn std::error::Error, "page read failed");
+        assert!(logger_provider.force_flush().is_ok());
+
+        let exported_logs = exporter
+            .get_emitted_logs()
+            .expect("Logs are expected to be exported.");
+        let log = exported_logs
+            .first()
+            .expect("Atleast one log is expected to be present.");
+        let cause_messages_key = Key::new("exception.cause.messages");
+        assert!(!log
+            .record
+            .attributes_iter()
+            .any(|(key, _)| *key == cause_messages_key));
     }
 
     // cargo test --features=testing
@@ -1681,6 +1771,45 @@ mod tests {
             &log.record,
             &Key::new("foo"),
             &AnyValue::String("bar".into())
+        ));
+    }
+
+    #[test]
+    #[cfg(feature = "experimental_span_attributes")]
+    fn tracing_appender_span_error_cause_messages_lists_sources() {
+        let exporter = InMemoryLogExporter::default();
+        let provider = SdkLoggerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
+
+        let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
+            .with_tracing_span_attributes(TracingSpanAttributes::all())
+            .build()
+            .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
+                meta.is_span() || *meta.level() <= tracing::Level::ERROR
+            }));
+        let subscriber = tracing_subscriber::registry().with(layer);
+        let _guard = tracing::subscriber::set_default(subscriber);
+
+        let error = ReadPageError(OTelSdkError::AlreadyShutdown);
+        let span = tracing::info_span!("test_span", error = &error as &dyn std::error::Error);
+        let _enter = span.enter();
+        tracing::error!("page read failed");
+
+        provider.force_flush().unwrap();
+        let logs = exporter.get_emitted_logs().unwrap();
+        assert_eq!(logs.len(), 1);
+        assert!(attributes_contains(
+            &logs[0].record,
+            &Key::new("exception.message"),
+            &AnyValue::from("the page is unreadable")
+        ));
+        let expected_cause_messages =
+            AnyValue::from_iter([OTelSdkError::AlreadyShutdown.to_string()]);
+        assert!(attributes_contains(
+            &logs[0].record,
+            &Key::new("exception.cause.messages"),
+            &expected_cause_messages
         ));
     }
 

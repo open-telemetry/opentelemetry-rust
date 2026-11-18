@@ -2,6 +2,9 @@
 
 ## vNext
 
+- An error recorded as a tracing field, e.g. `error = &err as &dyn Error`, now
+  also sets `exception.cause.messages` to the message of each of its sources,
+  in order, when it has any.
 - Fixes [#3543](https://github.com/open-telemetry/opentelemetry-rust/issues/3543):
   Event metadata is now always normalized when `experimental_metadata_attributes` 
   is enabled. In particular, when using the feature the underlying OTEL logger
