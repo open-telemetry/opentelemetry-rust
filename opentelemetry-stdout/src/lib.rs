@@ -55,6 +55,10 @@
 #![warn(missing_debug_implementations, missing_docs)]
 #![cfg_attr(docsrs, feature(doc_cfg), deny(rustdoc::broken_intra_doc_links))]
 
+static TIME_FORMAT: &[time::format_description::FormatItem] = time::macros::format_description!(
+    "[year]-[month]-[day] [hour]:[minute]:[second][subsecond digits:6]"
+);
+
 #[cfg(feature = "metrics")]
 mod metrics;
 #[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]

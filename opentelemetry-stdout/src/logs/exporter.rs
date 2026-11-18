@@ -1,11 +1,12 @@
-use chrono::{DateTime, Utc};
+use crate::TIME_FORMAT;
 use core::fmt;
 use opentelemetry_sdk::error::{OTelSdkError, OTelSdkResult};
 use opentelemetry_sdk::logs::LogBatch;
 use opentelemetry_sdk::Resource;
 use std::sync::atomic;
 use std::sync::atomic::Ordering;
-use std::time;
+use std::time::Duration;
+use time::UtcDateTime;
 
 /// An OpenTelemetry exporter that writes Logs to stdout on export.
 pub struct LogExporter {
@@ -58,7 +59,7 @@ impl opentelemetry_sdk::logs::LogExporter for LogExporter {
         }
     }
 
-    fn shutdown_with_timeout(&self, _timeout: time::Duration) -> OTelSdkResult {
+    fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
         self.is_shutdown.store(true, atomic::Ordering::SeqCst);
         Ok(())
     }
@@ -89,14 +90,14 @@ fn print_logs(batch: LogBatch<'_>) {
             }
         }
         if let Some(timestamp) = record.timestamp() {
-            let datetime: DateTime<Utc> = timestamp.into();
-            println!("\t Timestamp: {}", datetime.format("%Y-%m-%d %H:%M:%S%.6f"));
+            let datetime: UtcDateTime = timestamp.into();
+            println!("\t Timestamp: {}", datetime.format(TIME_FORMAT).unwrap());
         }
         if let Some(timestamp) = record.observed_timestamp() {
-            let datetime: DateTime<Utc> = timestamp.into();
+            let datetime: UtcDateTime = timestamp.into();
             println!(
                 "\t Observed Timestamp: {}",
-                datetime.format("%Y-%m-%d %H:%M:%S%.6f")
+                datetime.format(TIME_FORMAT).unwrap()
             );
         }
         if let Some(severity) = record.severity_text() {
