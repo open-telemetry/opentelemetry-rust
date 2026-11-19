@@ -23,6 +23,7 @@ mod metrictests {
     use integration_test_runner::metric_helpers::{
         assert_metrics_results_contains, setup_metrics_non_tokio, setup_metrics_tokio,
     };
+    use opentelemetry::metrics::MeterProvider;
     use tokio::runtime::Handle;
     use uuid::Uuid;
 
@@ -54,12 +55,11 @@ mod metrictests {
     async fn metric_helper_tokio_current() -> Result<()> {
         let meter_provider = setup_metrics_tokio().await;
 
-        const METER_NAME: &str = "test_meter";
-        const INSTRUMENT_NAME: &str = "test_counter";
-
-        let meter = opentelemetry::global::meter_provider().meter(METER_NAME);
         let expected_uuid = Uuid::new_v4().to_string();
-        let counter = meter.u64_counter(INSTRUMENT_NAME).build();
+        let counter = meter_provider
+            .meter("test_meter")
+            .u64_counter("test_counter")
+            .build();
         counter.add(
             10,
             &[
@@ -87,13 +87,11 @@ mod metrictests {
 
     fn metric_helper_non_tokio() -> Result<()> {
         let (meter_provider, _rt) = setup_metrics_non_tokio(true);
-        const METER_NAME: &str = "test_meter";
-        const INSTRUMENT_NAME: &str = "test_counter";
-
-        // Add data to u64_counter
-        let meter = opentelemetry::global::meter_provider().meter(METER_NAME);
         let expected_uuid = Uuid::new_v4().to_string();
-        let counter = meter.u64_counter(INSTRUMENT_NAME).build();
+        let counter = meter_provider
+            .meter("test_meter")
+            .u64_counter("test_counter")
+            .build();
         counter.add(
             10,
             &[
@@ -114,13 +112,11 @@ mod metrictests {
     }
 
     fn emit_and_validate_metrics(meter_provider: SdkMeterProvider) -> Result<()> {
-        const METER_NAME: &str = "test_meter";
-        const INSTRUMENT_NAME: &str = "test_counter";
-
-        // Add data to u64_counter
-        let meter = opentelemetry::global::meter_provider().meter(METER_NAME);
         let expected_uuid = Uuid::new_v4().to_string();
-        let counter = meter.u64_counter(INSTRUMENT_NAME).build();
+        let counter = meter_provider
+            .meter("test_meter")
+            .u64_counter("test_counter")
+            .build();
         counter.add(
             10,
             &[
