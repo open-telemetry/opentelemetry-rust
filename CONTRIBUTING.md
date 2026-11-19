@@ -349,6 +349,23 @@ The continuous benchmark dashboard is published at
 PRs with the `performance` label will also get a benchmark comparison
 comment showing any regressions or improvements.
 
+### Fuzzing
+
+Fuzz targets are owned by the crate they exercise and live in that crate's
+`fuzz` directory. They use nightly-only tooling from an independent Cargo
+project so regular workspace and MSRV builds remain unaffected. See the owning
+crate's fuzzing README for setup and target details, for example
+[`opentelemetry/fuzz/README.md`](opentelemetry/fuzz/README.md).
+
+Run an API crate target from the repository root with:
+
+```sh
+cargo +nightly fuzz run --fuzz-dir opentelemetry/fuzz <target>
+```
+
+Pull requests carrying the `fuzz` label run every fuzz target in CI. The same
+workflow runs after every push to `main`.
+
 ## FAQ
 
 ### Where should I put third party propagators/exporters, contrib or standalone crates?
