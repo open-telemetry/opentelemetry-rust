@@ -838,7 +838,7 @@ mod tests {
 
         let p = processor.clone();
         let task = tokio::spawn(async move {
-            p.on_end(new_test_export_span_data());
+            p.on_end(FinishedSpan::borrowed(&new_test_export_span_data()));
             assert_eq!(export_count.load(Ordering::SeqCst), 0);
 
             let p_flush = p.clone();
@@ -848,7 +848,7 @@ mod tests {
                 .expect("force_flush should succeed");
             assert_eq!(export_count.load(Ordering::SeqCst), 1);
 
-            p.on_end(new_test_export_span_data());
+            p.on_end(FinishedSpan::borrowed(&new_test_export_span_data()));
             assert_eq!(export_count.load(Ordering::SeqCst), 1);
 
             let p_shutdown = p.clone();
