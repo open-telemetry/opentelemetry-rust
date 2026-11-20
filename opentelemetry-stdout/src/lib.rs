@@ -55,6 +55,9 @@
 #![warn(missing_debug_implementations, missing_docs)]
 #![cfg_attr(docsrs, feature(doc_cfg), deny(rustdoc::broken_intra_doc_links))]
 
+#[cfg(any(feature = "metrics", feature = "trace", feature = "logs"))]
+mod time;
+
 #[cfg(feature = "metrics")]
 mod metrics;
 #[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]

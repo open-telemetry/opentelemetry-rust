@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use crate::time::format_time;
 use core::fmt;
 use opentelemetry_sdk::error::{OTelSdkError, OTelSdkResult};
 use opentelemetry_sdk::logs::LogBatch;
@@ -89,15 +89,12 @@ fn print_logs(batch: LogBatch<'_>) {
             }
         }
         if let Some(timestamp) = record.timestamp() {
-            let datetime: DateTime<Utc> = timestamp.into();
-            println!("\t Timestamp: {}", datetime.format("%Y-%m-%d %H:%M:%S%.6f"));
+            let datetime = format_time(timestamp);
+            println!("\t Timestamp: {}", datetime);
         }
         if let Some(timestamp) = record.observed_timestamp() {
-            let datetime: DateTime<Utc> = timestamp.into();
-            println!(
-                "\t Observed Timestamp: {}",
-                datetime.format("%Y-%m-%d %H:%M:%S%.6f")
-            );
+            let datetime = format_time(timestamp);
+            println!("\t Observed Timestamp: {}", datetime);
         }
         if let Some(severity) = record.severity_text() {
             println!("\t SeverityText: {severity:?}");
