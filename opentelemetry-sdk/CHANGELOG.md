@@ -251,6 +251,11 @@ Released 2026-May-08
   service name is not explicitly configured. Previously, it only used
   `unknown_service`.
 - Fix `SpanExporter::shutdown()` default timeout from 5 nanoseconds to 5 seconds.
+- Fix `SdkMeterProvider::shutdown_with_timeout()` ignoring its `timeout` argument.
+  The timeout is now passed to the metric readers and, for `PeriodicReader`,
+  used to bound how long the caller waits and passed on to the exporter's
+  `shutdown_with_timeout()`. Previously a hardcoded 5 seconds was used.
+  [#2574](https://github.com/open-telemetry/opentelemetry-rust/issues/2574)
 - **Breaking** `SpanExporter` trait methods `shutdown`, `shutdown_with_timeout`, and `force_flush` now take `&self` instead of `&mut self` for consistency with `LogExporter` and `PushMetricExporter`. Implementers using interior mutability (e.g., `Mutex`, `AtomicBool`) require no changes.
 - Added `Resource::get_ref(&self, key: &Key) -> Option<&Value>` to allow retrieving a reference to a resource value without cloning.
 - **Breaking** Removed the following public hidden methods from the `SdkTracer` [#3227][3227]:

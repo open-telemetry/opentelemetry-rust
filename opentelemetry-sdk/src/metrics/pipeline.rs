@@ -3,7 +3,7 @@ use std::{
     borrow::Cow,
     collections::{HashMap, HashSet},
     sync::{Arc, Mutex},
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use opentelemetry::{otel_debug, otel_warn, InstrumentationScope, KeyValue};
@@ -92,11 +92,6 @@ impl Pipeline {
     /// Send accumulated telemetry
     fn force_flush(&self) -> OTelSdkResult {
         self.reader.force_flush()
-    }
-
-    /// Shut down pipeline
-    fn shutdown(&self) -> OTelSdkResult {
-        self.reader.shutdown()
     }
 
     /// Shut down pipeline with timeout
@@ -763,29 +758,13 @@ impl Pipelines {
         }
     }
 
-    /// Shut down all pipelines
+    /// Shut down all pipelines, sharing `timeout` as a single budget across them.
     pub(crate) fn shutdown_with_timeout(&self, timeout: Duration) -> OTelSdkResult {
+        let start = Instant::now();
         let mut errs = vec![];
         for pipeline in &self.0 {
-            if let Err(err) = pipeline.shutdown_with_timeout(timeout) {
-                errs.push(err);
-            }
-        }
-
-        if errs.is_empty() {
-            Ok(())
-        } else {
-            Err(crate::error::OTelSdkError::InternalFailure(format!(
-                "{errs:?}"
-            )))
-        }
-    }
-
-    /// Shut down all pipelines
-    pub(crate) fn shutdown(&self) -> OTelSdkResult {
-        let mut errs = vec![];
-        for pipeline in &self.0 {
-            if let Err(err) = pipeline.shutdown() {
+            let remaining = timeout.saturating_sub(start.elapsed());
+            if let Err(err) = pipeline.shutdown_with_timeout(remaining) {
                 errs.push(err);
             }
         }

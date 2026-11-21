@@ -253,7 +253,11 @@ impl<E: PushMetricExporter> PeriodicReader<E> {
                                 remaining_interval = Duration::ZERO;
                             }
                         }
-                        Ok(Message::Shutdown(response_sender)) => {
+                        Ok(Message::Shutdown {
+                            timeout,
+                            requested_at,
+                            response_sender,
+                        }) => {
                             // Perform final export and break out of loop and exit the thread
                             otel_debug!(name: "PeriodReaderThreadExportingDueToShutdown");
                             let export_result = cloned_reader.collect_and_export(&mut rm);
@@ -261,7 +265,10 @@ impl<E: PushMetricExporter> PeriodicReader<E> {
                                 name: "PeriodReaderInvokedExport",
                                 export_result = format!("{:?}", export_result)
                             );
-                            let shutdown_result = exporter_arc.shutdown();
+                            // The final export cannot be cancelled, so give the
+                            // exporter whatever is left of the caller's budget.
+                            let remaining = timeout.saturating_sub(requested_at.elapsed());
+                            let shutdown_result = exporter_arc.shutdown_with_timeout(remaining);
                             otel_debug!(
                                 name: "PeriodReaderInvokedExporterShutdown",
                                 shutdown_result = format!("{:?}", shutdown_result)
@@ -472,15 +479,18 @@ impl<E: PushMetricExporter> PeriodicReaderInner<E> {
         }
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
+    fn shutdown_with_timeout(&self, timeout: Duration) -> OTelSdkResult {
         // TODO: See if this is better to be created upfront.
         let (response_tx, response_rx) = mpsc::channel();
         self.message_sender
-            .send(Message::Shutdown(response_tx))
+            .send(Message::Shutdown {
+                timeout,
+                requested_at: Instant::now(),
+                response_sender: response_tx,
+            })
             .map_err(|e| OTelSdkError::InternalFailure(e.to_string()))?;
 
-        // TODO: Make this timeout configurable.
-        match response_rx.recv_timeout(Duration::from_secs(5)) {
+        match response_rx.recv_timeout(timeout) {
             Ok(response) => {
                 if response {
                     Ok(())
@@ -488,9 +498,7 @@ impl<E: PushMetricExporter> PeriodicReaderInner<E> {
                     Err(OTelSdkError::InternalFailure("Failed to shutdown".into()))
                 }
             }
-            Err(mpsc::RecvTimeoutError::Timeout) => {
-                Err(OTelSdkError::Timeout(Duration::from_secs(5)))
-            }
+            Err(mpsc::RecvTimeoutError::Timeout) => Err(OTelSdkError::Timeout(timeout)),
             Err(mpsc::RecvTimeoutError::Disconnected) => {
                 Err(OTelSdkError::InternalFailure("Failed to shutdown".into()))
             }
@@ -501,7 +509,14 @@ impl<E: PushMetricExporter> PeriodicReaderInner<E> {
 #[derive(Debug)]
 enum Message {
     Flush(Sender<bool>),
-    Shutdown(Sender<bool>),
+    Shutdown {
+        /// Total time the caller is willing to wait for shutdown.
+        timeout: Duration,
+        /// When the caller requested shutdown, used to work out the budget
+        /// remaining by the time the worker reaches the exporter.
+        requested_at: Instant,
+        response_sender: Sender<bool>,
+    },
 }
 
 impl<E: PushMetricExporter> MetricReader for PeriodicReader<E> {
@@ -521,8 +536,8 @@ impl<E: PushMetricExporter> MetricReader for PeriodicReader<E> {
     // completion, and avoid blocking the thread. The default shutdown on drop
     // can still use blocking call. If user already explicitly called shutdown,
     // drop won't call shutdown again.
-    fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
-        self.inner.shutdown()
+    fn shutdown_with_timeout(&self, timeout: Duration) -> OTelSdkResult {
+        self.inner.shutdown_with_timeout(timeout)
     }
 
     /// To construct a [MetricReader][metric-reader] when setting up an SDK,
@@ -579,9 +594,9 @@ mod tests {
     use std::{
         sync::{
             atomic::{AtomicBool, AtomicUsize, Ordering},
-            mpsc, Arc,
+            mpsc, Arc, Mutex,
         },
-        time::Duration,
+        time::{Duration, Instant},
     };
 
     // use below command to run all tests
@@ -810,6 +825,88 @@ mod tests {
 
         // Assert that atleast 2 exports are attempted given the 1st one fails.
         assert!(exporter.get_count() >= 2);
+    }
+
+    /// Exporter that records the timeout it is given on shutdown and can
+    /// optionally block in shutdown to simulate a slow exporter.
+    #[derive(Debug, Clone, Default)]
+    struct ShutdownTimeoutExporter {
+        received_timeout: Arc<Mutex<Option<Duration>>>,
+        shutdown_delay: Duration,
+    }
+
+    impl PushMetricExporter for ShutdownTimeoutExporter {
+        async fn export(&self, _metrics: &ResourceMetrics) -> OTelSdkResult {
+            Ok(())
+        }
+
+        fn force_flush(&self) -> OTelSdkResult {
+            Ok(())
+        }
+
+        fn shutdown(&self) -> OTelSdkResult {
+            self.shutdown_with_timeout(Duration::from_secs(5))
+        }
+
+        fn shutdown_with_timeout(&self, timeout: Duration) -> OTelSdkResult {
+            *self.received_timeout.lock().unwrap() = Some(timeout);
+            std::thread::sleep(self.shutdown_delay);
+            Ok(())
+        }
+
+        fn temporality(&self) -> Temporality {
+            Temporality::Cumulative
+        }
+    }
+
+    #[test]
+    fn shutdown_timeout_passed_to_exporter() {
+        // Arrange
+        let exporter = ShutdownTimeoutExporter::default();
+        let received_timeout = exporter.received_timeout.clone();
+        let reader = PeriodicReader::builder(exporter).build();
+        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+
+        // Act: use a timeout that differs from the 5 second default.
+        let timeout = Duration::from_secs(30);
+        meter_provider
+            .shutdown_with_timeout(timeout)
+            .expect("shutdown should succeed");
+
+        // Assert: the exporter gets the caller's budget (minus time already
+        // spent), not the default 5 seconds.
+        let received = received_timeout
+            .lock()
+            .unwrap()
+            .expect("exporter shutdown should have been called");
+        assert!(received <= timeout, "received {received:?}");
+        assert!(received > Duration::from_secs(5), "received {received:?}");
+    }
+
+    #[test]
+    fn shutdown_honors_caller_timeout() {
+        // Arrange: exporter shutdown takes much longer than the timeout.
+        let exporter = ShutdownTimeoutExporter {
+            shutdown_delay: Duration::from_secs(3),
+            ..Default::default()
+        };
+        let reader = PeriodicReader::builder(exporter).build();
+        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+
+        // Act
+        let timeout = Duration::from_millis(100);
+        let start = Instant::now();
+        let result = meter_provider.shutdown_with_timeout(timeout);
+        let elapsed = start.elapsed();
+
+        // Assert: the caller stops waiting after the timeout, not after the
+        // previously hardcoded 5 seconds or the exporter's 3 second delay.
+        assert!(result.is_err());
+        assert!(
+            format!("{result:?}").contains("Timeout"),
+            "unexpected result: {result:?}"
+        );
+        assert!(elapsed < Duration::from_secs(2), "took {elapsed:?}");
     }
 
     #[test]
@@ -1190,7 +1287,11 @@ mod tests {
             reader
                 .inner
                 .message_sender
-                .send(super::Message::Shutdown(shutdown_tx))
+                .send(super::Message::Shutdown {
+                    timeout: Duration::from_secs(5),
+                    requested_at: Instant::now(),
+                    response_sender: shutdown_tx,
+                })
                 .unwrap();
             entered_rx.recv_timeout(Duration::from_secs(5)).unwrap();
             let (flush_tx, flush_rx) = mpsc::channel();
