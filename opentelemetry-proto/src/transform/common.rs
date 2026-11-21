@@ -14,6 +14,47 @@ pub(crate) fn to_nanos(time: SystemTime) -> u64 {
         .as_nanos() as u64
 }
 
+/// Keeps W3C trace flags for OTLP, excluding propagator-private bits.
+#[cfg(all(
+    feature = "gen-tonic-messages",
+    any(feature = "trace", feature = "logs")
+))]
+pub(crate) fn w3c_trace_flags(flags: opentelemetry::TraceFlags) -> u32 {
+    use opentelemetry::TraceFlags;
+    (flags & (TraceFlags::SAMPLED | TraceFlags::RANDOM)).to_u8() as u32
+}
+
+#[cfg(all(
+    test,
+    feature = "gen-tonic-messages",
+    any(feature = "trace", feature = "logs")
+))]
+mod w3c_trace_flags_tests {
+    use super::w3c_trace_flags;
+    use opentelemetry::TraceFlags;
+
+    #[test]
+    fn keeps_only_w3c_trace_flags() {
+        // B3 uses 0x80 for deferred sampling and 0x04 for debug.
+        for (flags, expected) in [
+            (0x00, 0x00),
+            (0x01, 0x01),
+            (0x02, 0x02),
+            (0x03, 0x03),
+            (0x80, 0x00),
+            (0x84, 0x00),
+            (0x83, 0x03),
+            (0xff, 0x03),
+        ] {
+            assert_eq!(
+                w3c_trace_flags(TraceFlags::new(flags)),
+                expected,
+                "flags {flags:#04x}"
+            );
+        }
+    }
+}
+
 #[cfg(feature = "gen-tonic-messages")]
 pub mod tonic {
     use crate::proto::tonic::common::v1::{
@@ -55,20 +96,11 @@ pub mod tonic {
             ),
         ) -> Self {
             let (library, target) = data;
-            if let Some(t) = target {
-                InstrumentationScope {
-                    name: t.to_string(),
-                    version: String::new(),
-                    attributes: vec![],
-                    ..Default::default()
-                }
-            } else {
-                InstrumentationScope {
-                    name: library.name().to_owned(),
-                    version: library.version().map(ToOwned::to_owned).unwrap_or_default(),
-                    attributes: Attributes::from(library.attributes().cloned()).0,
-                    ..Default::default()
-                }
+            InstrumentationScope {
+                name: target.map_or_else(|| library.name().to_owned(), Cow::into_owned),
+                version: library.version().unwrap_or_default().to_owned(),
+                attributes: Attributes::from(library.attributes().cloned()).0,
+                ..Default::default()
             }
         }
     }
@@ -86,20 +118,11 @@ pub mod tonic {
             ),
         ) -> Self {
             let (library, target) = data;
-            if let Some(t) = target {
-                InstrumentationScope {
-                    name: t.to_string(),
-                    version: String::new(),
-                    attributes: vec![],
-                    ..Default::default()
-                }
-            } else {
-                InstrumentationScope {
-                    name: library.name().to_owned(),
-                    version: library.version().map(ToOwned::to_owned).unwrap_or_default(),
-                    attributes: Attributes::from(library.attributes().cloned()).0,
-                    ..Default::default()
-                }
+            InstrumentationScope {
+                name: target.map_or_else(|| library.name().to_owned(), Cow::into_owned),
+                version: library.version().unwrap_or_default().to_owned(),
+                attributes: Attributes::from(library.attributes().cloned()).0,
+                ..Default::default()
             }
         }
     }
@@ -115,6 +138,7 @@ pub mod tonic {
                     .map(|api_kv| KeyValue {
                         key: api_kv.key.as_str().to_string(),
                         value: Some(api_kv.value.into()),
+                        key_strindex: 0,
                     })
                     .collect(),
             )
@@ -129,6 +153,7 @@ pub mod tonic {
                     .map(|(k, v)| KeyValue {
                         key: k.into(),
                         value: Some(v.into()),
+                        key_strindex: 0,
                     })
                     .collect(),
             )
@@ -175,5 +200,54 @@ pub mod tonic {
             .map(|(k, v)| opentelemetry::KeyValue::new(k.clone(), v.clone()))
             .collect::<Vec<_>>()
             .into()
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        use opentelemetry::KeyValue;
+        use std::borrow::Cow;
+
+        fn assert_scope_fields(
+            proto_scope: &InstrumentationScope,
+            expected_name: &str,
+            expected_version: &str,
+            expected_attr_key: &str,
+        ) {
+            assert_eq!(proto_scope.name, expected_name);
+            assert_eq!(proto_scope.version, expected_version);
+            assert_eq!(proto_scope.attributes.len(), 1);
+            assert_eq!(proto_scope.attributes[0].key, expected_attr_key);
+        }
+
+        #[test]
+        fn instrumentation_scope_with_target_overrides_name_but_preserves_version_and_attributes() {
+            let scope = opentelemetry::InstrumentationScope::builder("my-lib")
+                .with_version("1.0.0")
+                .with_attributes([KeyValue::new("feature", "metrics")])
+                .build();
+            let target: Option<Cow<'static, str>> = Some(Cow::Borrowed("my_app::handlers"));
+
+            let from_owned = InstrumentationScope::from((scope.clone(), target.clone()));
+            let from_ref = InstrumentationScope::from((&scope, target));
+
+            assert_scope_fields(&from_owned, "my_app::handlers", "1.0.0", "feature");
+            assert_scope_fields(&from_ref, "my_app::handlers", "1.0.0", "feature");
+        }
+
+        #[test]
+        fn instrumentation_scope_without_target_preserves_all_fields() {
+            let scope = opentelemetry::InstrumentationScope::builder("my-lib")
+                .with_version("1.0.0")
+                .with_attributes([KeyValue::new("feature", "metrics")])
+                .build();
+            let target: Option<Cow<'static, str>> = None;
+
+            let from_owned = InstrumentationScope::from((scope.clone(), target.clone()));
+            let from_ref = InstrumentationScope::from((&scope, target));
+
+            assert_scope_fields(&from_owned, "my-lib", "1.0.0", "feature");
+            assert_scope_fields(&from_ref, "my-lib", "1.0.0", "feature");
+        }
     }
 }

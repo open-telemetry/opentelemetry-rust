@@ -1,16 +1,17 @@
 use std::{borrow::Cow, collections::HashSet, error::Error, sync::Arc};
 
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use opentelemetry::metrics::BoundSyncInstrument;
 use opentelemetry::{
     metrics::{AsyncInstrument, SyncInstrument},
     InstrumentationScope, Key, KeyValue,
 };
 
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use crate::metrics::internal::BoundMeasure;
 use crate::metrics::{aggregation::Aggregation, internal::Measure};
 
-use super::meter::{
-    INSTRUMENT_NAME_EMPTY, INSTRUMENT_NAME_FIRST_ALPHABETIC, INSTRUMENT_NAME_INVALID_CHAR,
-    INSTRUMENT_NAME_LENGTH, INSTRUMENT_UNIT_INVALID_CHAR, INSTRUMENT_UNIT_LENGTH,
-};
+use super::meter::{INSTRUMENT_UNIT_INVALID_CHAR, INSTRUMENT_UNIT_LENGTH};
 
 use super::Temporality;
 
@@ -211,33 +212,13 @@ impl StreamBuilder {
     ///
     /// A Result containing the new Stream instance or an error if the build failed.
     pub fn build(self) -> Result<Stream, Box<dyn Error>> {
-        // TODO: Avoid copying the validation logic from meter.rs,
-        // and instead move it to a common place and do it once.
-        // It is a bug that validations are done in meter.rs
-        // as it'll not allow users to fix instrumentation mistakes
-        // using views.
-
-        // Validate name if provided
-        if let Some(name) = &self.name {
-            if name.is_empty() {
-                return Err(INSTRUMENT_NAME_EMPTY.into());
-            }
-
-            if name.len() > super::meter::INSTRUMENT_NAME_MAX_LENGTH {
-                return Err(INSTRUMENT_NAME_LENGTH.into());
-            }
-
-            if name.starts_with(|c: char| !c.is_ascii_alphabetic()) {
-                return Err(INSTRUMENT_NAME_FIRST_ALPHABETIC.into());
-            }
-
-            if name.contains(|c: char| {
-                !c.is_ascii_alphanumeric()
-                    && !super::meter::INSTRUMENT_NAME_ALLOWED_NON_ALPHANUMERIC_CHARS.contains(&c)
-            }) {
-                return Err(INSTRUMENT_NAME_INVALID_CHAR.into());
-            }
-        }
+        // Note: Per the OpenTelemetry specification, the View-provided stream
+        // `name` is NOT subject to the instrument name syntax, and the SDK
+        // MUST NOT validate it against that syntax. This allows Views to be
+        // used to fix instrumentation mistakes (e.g. renaming an instrument
+        // whose original name does not satisfy the syntax) and to support
+        // export targets that have different naming requirements.
+        // See: https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/sdk.md#view
 
         // Validate unit if provided
         if let Some(unit) = &self.unit {
@@ -254,6 +235,11 @@ impl StreamBuilder {
         if let Some(limit) = self.cardinality_limit {
             if limit == 0 {
                 return Err("Cardinality limit must be greater than 0".into());
+            }
+            // Reject usize::MAX because the SDK's internal HashMap capacity
+            // is sized as `1 + cardinality_limit`, which would overflow.
+            if limit == usize::MAX {
+                return Err("Cardinality limit must be less than usize::MAX".into());
             }
         }
 
@@ -388,6 +374,29 @@ impl<T: Copy + 'static> SyncInstrument<T> for ResolvedMeasures<T> {
             measure.call(val, attrs)
         }
     }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    fn bind(&self, attrs: &[KeyValue]) -> Box<dyn BoundSyncInstrument<T> + Send + Sync> {
+        let bound_measures: Vec<Box<dyn BoundMeasure<T>>> =
+            self.measures.iter().map(|m| m.bind(attrs)).collect();
+        Box::new(ResolvedBoundMeasures {
+            measures: bound_measures,
+        })
+    }
+}
+
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+pub(crate) struct ResolvedBoundMeasures<T> {
+    measures: Vec<Box<dyn BoundMeasure<T>>>,
+}
+
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+impl<T: Copy + 'static> BoundSyncInstrument<T> for ResolvedBoundMeasures<T> {
+    fn measure(&self, val: T) {
+        for measure in &self.measures {
+            measure.call(val);
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -412,54 +421,41 @@ impl<T: Copy + Send + Sync + 'static> AsyncInstrument<T> for Observable<T> {
 #[cfg(test)]
 mod tests {
     use super::StreamBuilder;
-    use crate::metrics::meter::{
-        INSTRUMENT_NAME_EMPTY, INSTRUMENT_NAME_FIRST_ALPHABETIC, INSTRUMENT_NAME_INVALID_CHAR,
-        INSTRUMENT_NAME_LENGTH, INSTRUMENT_UNIT_INVALID_CHAR, INSTRUMENT_UNIT_LENGTH,
-    };
+    use crate::metrics::meter::{INSTRUMENT_UNIT_INVALID_CHAR, INSTRUMENT_UNIT_LENGTH};
 
     #[test]
-    fn stream_name_validation() {
-        // (name, expected error)
-        let stream_name_test_cases = vec![
-            ("validateName", ""),
-            ("_startWithNoneAlphabet", INSTRUMENT_NAME_FIRST_ALPHABETIC),
-            ("utf8char锈", INSTRUMENT_NAME_INVALID_CHAR),
-            ("a".repeat(255).leak(), ""),
-            ("a".repeat(256).leak(), INSTRUMENT_NAME_LENGTH),
-            ("invalid name", INSTRUMENT_NAME_INVALID_CHAR),
-            ("allow/slash", ""),
-            ("allow_under_score", ""),
-            ("allow.dots.ok", ""),
-            ("", INSTRUMENT_NAME_EMPTY),
-            ("\\allow\\slash /sec", INSTRUMENT_NAME_FIRST_ALPHABETIC),
-            ("\\allow\\$$slash /sec", INSTRUMENT_NAME_FIRST_ALPHABETIC),
-            ("Total $ Count", INSTRUMENT_NAME_INVALID_CHAR),
-            (
-                "\\test\\UsagePercent(Total) > 80%",
-                INSTRUMENT_NAME_FIRST_ALPHABETIC,
-            ),
-            ("/not / allowed", INSTRUMENT_NAME_FIRST_ALPHABETIC),
+    fn stream_name_no_validation() {
+        // Per the OpenTelemetry specification, View-provided stream names are
+        // NOT subject to the instrument name syntax. The SDK MUST NOT validate
+        // the View-provided name against that syntax. All names below — which
+        // would be rejected for direct instrument creation — MUST be accepted
+        // when supplied via a View/Stream.
+        let stream_names_all_accepted = vec![
+            "validateName",
+            "_startWithNoneAlphabet",
+            "utf8char锈",
+            "a".repeat(255).leak(),
+            "a".repeat(256).leak(),
+            "invalid name",
+            "allow/slash",
+            "allow_under_score",
+            "allow.dots.ok",
+            "",
+            "\\allow\\slash /sec",
+            "\\allow\\$$slash /sec",
+            "Total $ Count",
+            "\\test\\UsagePercent(Total) > 80%",
+            "/not / allowed",
         ];
 
-        for (name, expected_error) in stream_name_test_cases {
-            let builder = StreamBuilder::new().with_name(name);
-            let result = builder.build();
-
-            if expected_error.is_empty() {
-                assert!(
-                    result.is_ok(),
-                    "Expected successful build for name '{}', but got error: {:?}",
-                    name,
-                    result.err()
-                );
-            } else {
-                let err = result.err().unwrap();
-                let err_str = err.to_string();
-                assert!(
-                    err_str == expected_error,
-                    "For name '{name}', expected error '{expected_error}', but got '{err_str}'"
-                );
-            }
+        for name in stream_names_all_accepted {
+            let result = StreamBuilder::new().with_name(name).build();
+            assert!(
+                result.is_ok(),
+                "Expected View-provided stream name '{}' to be accepted without validation, but got error: {:?}",
+                name,
+                result.err()
+            );
         }
     }
 
@@ -517,8 +513,24 @@ mod tests {
             "Expected cardinality limit validation error message"
         );
 
+        // Test usize::MAX (invalid — would overflow internal `1 + limit` capacity)
+        let builder = StreamBuilder::new()
+            .with_name("valid_name")
+            .with_cardinality_limit(usize::MAX);
+
+        let result = builder.build();
+        assert!(
+            result.is_err(),
+            "Expected error for usize::MAX cardinality limit"
+        );
+        assert_eq!(
+            result.err().unwrap().to_string(),
+            "Cardinality limit must be less than usize::MAX",
+            "Expected cardinality limit usize::MAX error message"
+        );
+
         // Test valid cardinality limits
-        let valid_limits = vec![1, 10, 100, 1000];
+        let valid_limits = vec![1, 10, 100, 1000, usize::MAX - 1];
         for limit in valid_limits {
             let builder = StreamBuilder::new()
                 .with_name("valid_name")

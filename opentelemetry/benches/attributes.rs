@@ -12,6 +12,20 @@ RAM: 64.0 GB
 | CreateOtelKeyValueArrayWithMixedValueTypes       |     18.1 ns |
 | CreateOtelKeyValueArrayWithNonStaticValues       |     90.1 ns |
 | CreateTupleKeyValueArray                         |     2.73 ns |
+
+OS: macOS 15
+Hardware: Apple M4 Pro, 14 cores, RAM: 24 GB
+| Test                                             | Average time|
+|--------------------------------------------------|-------------|
+| CreateOTelKey_Static                             |   0.28 ns   |
+| CreateOTelKey_Owned                              |  19.16 ns   |
+| CreateOTelKey_Arc                                |  21.76 ns   |
+| CreateOTelKeyValue                               |   1.30 ns   |
+| CreateTupleKeyValue                              |   0.26 ns   |
+| CreateOtelKeyValueArray                          |   7.41 ns   |
+| CreateOtelKeyValueArrayWithMixedValueTypes       |   5.50 ns   |
+| CreateOtelKeyValueArrayWithNonStaticValues       |  84.94 ns   |
+| CreateTupleKeyValueArray                         |   1.46 ns   |
 */
 
 use criterion::{criterion_group, criterion_main, Criterion};

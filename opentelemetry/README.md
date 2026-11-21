@@ -111,9 +111,6 @@ destination. OpenTelemetry provides the following exporters:
   telemetry backends like [Jaeger](https://www.jaegertracing.io/),
   [Prometheus](https://prometheus.io/docs/prometheus/latest/feature_flags/#otlp-receiver)
   or [vendor specific endpoints](https://opentelemetry.io/ecosystem/vendors/).
-- **[opentelemetry-zipkin](https://crates.io/crates/opentelemetry-zipkin):**
-  Exports telemetry (traces only) to Zipkin following [OpenTelemetry to Zipkin
-  specification](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/sdk_exporters/zipkin.md)
 - **[opentelemetry-prometheus](https://crates.io/crates/opentelemetry-prometheus):**
   Exports telemetry (metrics only) to Prometheus following [OpenTelemetry to
   Prometheus
@@ -136,12 +133,12 @@ You can find the release notes (changelog) [here](https://github.com/open-teleme
 ## Supported Rust Versions
 
 OpenTelemetry is built against the latest stable release. The minimum supported
-version is 1.75.0. The current OpenTelemetry version is not guaranteed to build
+version is 1.75.0. The current OpenTelemetry version is NOT guaranteed to build
 on Rust versions earlier than the minimum supported version.
 
-The current stable Rust compiler and the three most recent minor versions
-before it will always be supported. For example, if the current stable compiler
-version is 1.49, the minimum supported version will not be increased past 1.46,
-three minor versions prior. Increasing the minimum supported compiler version
-is not considered a semver breaking change as long as doing so complies with
-this policy.
+As an API and SDK-independent crate, `opentelemetry` retains its existing MSRV
+for as long as practical, even when the SDK and implementation crates advance
+to newer Rust versions. MSRV bumps are shipped only in minor releases, never
+patch releases, and are not considered
+semver-breaking changes. See the [MSRV
+policy](../docs/adr/002_msrv_policy.md) for the complete rules.

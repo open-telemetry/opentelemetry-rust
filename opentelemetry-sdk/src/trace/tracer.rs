@@ -14,14 +14,15 @@ use crate::trace::{
 };
 use opentelemetry::{
     trace::{Span as _, SpanBuilder, SpanContext, SpanKind, Status, TraceContextExt, TraceFlags},
-    Context, InstrumentationScope, KeyValue,
+    Context, InstrumentationScope, KeyValue, TraceId,
 };
 use std::fmt;
+use std::sync::Arc;
 
 /// `Tracer` implementation to create and manage spans
 #[derive(Clone)]
 pub struct SdkTracer {
-    scope: InstrumentationScope,
+    pub(crate) scope: Arc<InstrumentationScope>,
     provider: SdkTracerProvider,
 }
 
@@ -39,7 +40,10 @@ impl fmt::Debug for SdkTracer {
 impl SdkTracer {
     /// Create a new tracer (used internally by `TracerProvider`s).
     pub(crate) fn new(scope: InstrumentationScope, provider: SdkTracerProvider) -> Self {
-        SdkTracer { scope, provider }
+        SdkTracer {
+            scope: Arc::new(scope),
+            provider,
+        }
     }
 
     /// TracerProvider associated with this tracer.
@@ -48,6 +52,7 @@ impl SdkTracer {
     }
 
     /// Instrumentation scope of this tracer.
+    #[cfg(all(test, feature = "testing"))]
     pub(crate) fn instrumentation_scope(&self) -> &InstrumentationScope {
         &self.scope
     }
@@ -127,22 +132,23 @@ impl SdkTracer {
         } else {
             SpanEvents::default()
         };
-        Span::new(
+        Span::new_recording(
             sc,
-            Some(SpanData {
+            SpanData {
                 parent_span_id: psc.span_id(),
                 parent_span_is_remote: psc.is_valid() && psc.is_remote(),
                 span_kind: builder.span_kind.take().unwrap_or(SpanKind::Internal),
                 name,
                 start_time,
                 end_time: start_time,
+                end_time_set: false,
                 attributes: attribute_options,
                 dropped_attributes_count,
                 events: span_events,
                 links: span_links,
                 status: Status::default(),
-            }),
-            self.clone(),
+            },
+            self,
             span_limits,
         )
     }
@@ -160,43 +166,30 @@ impl opentelemetry::trace::Tracer for SdkTracer {
     /// trace includes a single root span, which is the shared ancestor of all other
     /// spans in the trace.
     fn build_with_context(&self, builder: SpanBuilder, parent_cx: &Context) -> Self::Span {
-        if parent_cx.is_telemetry_suppressed() {
-            return Span::new(
-                SpanContext::empty_context(),
-                None,
-                self.clone(),
-                SpanLimits::default(),
-            );
-        }
-
         let provider = self.provider();
-        // no point start a span if the tracer provider has already being shutdown
-        if provider.is_shutdown() {
-            return Span::new(
-                SpanContext::empty_context(),
-                None,
-                self.clone(),
-                SpanLimits::default(),
-            );
+        if parent_cx.is_telemetry_suppressed() || provider.is_shutdown() {
+            return Span::new_non_recording(SpanContext::empty_context(), self);
         }
 
         let config = provider.config();
         let span_id = config.id_generator.new_span_id();
         let trace_id;
+        let trace_flags;
         let mut psc = &SpanContext::empty_context();
 
-        let parent_span = if parent_cx.has_active_span() {
-            Some(parent_cx.span())
-        } else {
-            None
-        };
+        // Inheriting its all-zero trace id would produce a span with an invalid trace id
+        // if the sampler decides to record.
+        let parent_span = Some(parent_cx.span())
+            .filter(|span| span.span_context().trace_id() != TraceId::INVALID);
 
-        // Build context for sampling decision
+        // Inherit flags with the trace ID, or derive them from its generator.
         if let Some(sc) = parent_span.as_ref().map(|parent| parent.span_context()) {
             trace_id = sc.trace_id();
+            trace_flags = sc.trace_flags();
             psc = sc;
         } else {
             trace_id = config.id_generator.new_trace_id();
+            trace_flags = TraceFlags::default().with_random(config.id_generator.is_random());
         };
 
         let samplings_result = config.sampler.should_sample(
@@ -208,9 +201,9 @@ impl opentelemetry::trace::Tracer for SdkTracer {
             builder.links.as_deref().unwrap_or(&[]),
         );
 
-        let trace_flags = parent_cx.span().span_context().trace_flags();
         let trace_state = samplings_result.trace_state;
         let span_limits = config.span_limits;
+        let trace_flags = trace_flags.sanitized();
         // Build optional inner context, `None` if not recording.
         let mut span = match samplings_result.decision {
             SamplingDecision::RecordAndSample => {
@@ -246,9 +239,14 @@ impl opentelemetry::trace::Tracer for SdkTracer {
                 )
             }
             SamplingDecision::Drop => {
-                let span_context =
-                    SpanContext::new(trace_id, span_id, TraceFlags::default(), false, trace_state);
-                Span::new(span_context, None, self.clone(), span_limits)
+                let span_context = SpanContext::new(
+                    trace_id,
+                    span_id,
+                    trace_flags & TraceFlags::RANDOM,
+                    false,
+                    trace_state,
+                );
+                Span::new_non_recording(span_context, self)
             }
         };
 
@@ -266,16 +264,19 @@ impl opentelemetry::trace::Tracer for SdkTracer {
 #[cfg(all(test, feature = "testing", feature = "trace"))]
 mod tests {
     use crate::{
+        propagation::TraceContextPropagator,
         testing::trace::TestSpan,
-        trace::{Sampler, SamplingDecision, SamplingResult, ShouldSample},
+        trace::{IdGenerator, Sampler, SamplingDecision, SamplingResult, ShouldSample},
     };
     use opentelemetry::{
+        propagation::{Extractor, TextMapPropagator},
         trace::{
             Link, Span, SpanContext, SpanId, SpanKind, TraceContextExt, TraceFlags, TraceId,
             TraceState, Tracer, TracerProvider,
         },
         Context, KeyValue,
     };
+    use std::collections::HashMap;
 
     #[derive(Clone, Debug)]
     struct TestSampler {}
@@ -612,5 +613,326 @@ mod tests {
         assert_eq!(child.span_context.trace_id(), provided_trace_id);
         assert_ne!(child.parent_span_id, active_span_id);
         assert_ne!(child.span_context.trace_id(), active_trace_id);
+    }
+
+    #[derive(Debug)]
+    struct TestIdGenerator {
+        random: bool,
+    }
+
+    impl IdGenerator for TestIdGenerator {
+        fn new_trace_id(&self) -> TraceId {
+            TraceId::from(1)
+        }
+
+        fn new_span_id(&self) -> SpanId {
+            SpanId::from(1)
+        }
+
+        fn is_random(&self) -> bool {
+            self.random
+        }
+    }
+
+    #[derive(Clone, Debug)]
+    struct RecordOnlySampler;
+
+    impl ShouldSample for RecordOnlySampler {
+        fn should_sample(
+            &self,
+            _parent_context: Option<&Context>,
+            _trace_id: TraceId,
+            _name: &str,
+            _span_kind: &SpanKind,
+            _attributes: &[KeyValue],
+            _links: &[Link],
+        ) -> SamplingResult {
+            SamplingResult {
+                decision: SamplingDecision::RecordOnly,
+                attributes: Vec::new(),
+                trace_state: TraceState::default(),
+            }
+        }
+    }
+
+    fn remote_parent(flags: TraceFlags) -> Context {
+        Context::new().with_remote_span_context(SpanContext::new(
+            TraceId::from(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736),
+            SpanId::from(0x00f0_67aa_0ba9_02b7),
+            flags,
+            true,
+            TraceState::default(),
+        ))
+    }
+
+    #[test]
+    fn root_span_sets_random_flag_with_random_id_generator() {
+        let tracer_provider = crate::trace::SdkTracerProvider::builder().build();
+        let tracer = tracer_provider.tracer("test");
+        let span = tracer.start("root");
+        let sc = span.span_context();
+        assert!(sc.is_random());
+        assert!(sc.is_sampled());
+    }
+
+    #[test]
+    fn root_span_uses_id_generator_random_flag() {
+        for random in [false, true] {
+            let tracer_provider = crate::trace::SdkTracerProvider::builder()
+                .with_id_generator(TestIdGenerator { random })
+                .build();
+            let tracer = tracer_provider.tracer("test");
+            let span = tracer.start("root");
+            assert_eq!(span.span_context().is_random(), random);
+            assert!(span.span_context().is_sampled());
+        }
+    }
+
+    #[test]
+    fn root_record_only_keeps_random_flag() {
+        let tracer_provider = crate::trace::SdkTracerProvider::builder()
+            .with_sampler(RecordOnlySampler)
+            .build();
+        let tracer = tracer_provider.tracer("test");
+        let span = tracer.start("root");
+        let sc = span.span_context();
+        assert!(sc.is_random());
+        assert!(!sc.is_sampled());
+        assert!(span.is_recording());
+    }
+
+    #[test]
+    fn root_drop_keeps_random_flag() {
+        let tracer_provider = crate::trace::SdkTracerProvider::builder()
+            .with_sampler(Sampler::AlwaysOff)
+            .build();
+        let tracer = tracer_provider.tracer("test");
+        let span = tracer.start("root");
+        let sc = span.span_context();
+        assert!(sc.is_random());
+        assert!(!sc.is_sampled());
+        assert!(!span.is_recording());
+    }
+
+    #[test]
+    fn child_inherits_random_flag_from_local_parent() {
+        let tracer_provider = crate::trace::SdkTracerProvider::builder().build();
+        let tracer = tracer_provider.tracer("test");
+        let root = tracer.start("root");
+        let root_trace_id = root.span_context().trace_id();
+        let parent_cx = Context::current_with_span(root);
+        let child = tracer.start_with_context("child", &parent_cx);
+        let sc = child.span_context();
+        assert_eq!(sc.trace_id(), root_trace_id);
+        assert!(sc.is_random());
+        assert!(sc.is_sampled());
+    }
+
+    #[test]
+    fn child_inherits_flags_from_remote_parent() {
+        for (random, parent_flags) in [
+            (true, TraceFlags::SAMPLED),
+            (false, TraceFlags::SAMPLED | TraceFlags::RANDOM),
+        ] {
+            let tracer_provider = crate::trace::SdkTracerProvider::builder()
+                .with_id_generator(TestIdGenerator { random })
+                .build();
+            let tracer = tracer_provider.tracer("test");
+            let child = tracer.start_with_context("child", &remote_parent(parent_flags));
+            assert_eq!(child.span_context().trace_flags(), parent_flags);
+        }
+    }
+
+    #[test]
+    fn dropped_child_of_remote_parent_preserves_random_flag() {
+        let tracer_provider = crate::trace::SdkTracerProvider::builder()
+            .with_sampler(Sampler::AlwaysOff)
+            .build();
+        let tracer = tracer_provider.tracer("test");
+        let child = tracer.start_with_context(
+            "child",
+            &remote_parent(TraceFlags::SAMPLED | TraceFlags::RANDOM),
+        );
+        let sc = child.span_context();
+        assert!(sc.is_random());
+        assert!(!sc.is_sampled());
+        assert!(!child.is_recording());
+
+        let expected = format!("00-{}-{}-02", sc.trace_id(), sc.span_id());
+        let mut injector = HashMap::new();
+        TraceContextPropagator::new()
+            .inject_context(&Context::current_with_span(child), &mut injector);
+        assert_eq!(
+            Extractor::get(&injector, "traceparent"),
+            Some(expected.as_str())
+        );
+    }
+
+    #[test]
+    fn invalid_parent_starts_new_trace_with_generator_random_flag() {
+        // Neither the invalid trace ID nor the parent's flags should be inherited.
+        let invalid_parent = Context::current_with_span(TestSpan(SpanContext::new(
+            TraceId::INVALID,
+            SpanId::from(7),
+            TraceFlags::SAMPLED | TraceFlags::new(0x80),
+            true,
+            TraceState::default(),
+        )));
+
+        for random in [false, true] {
+            let tracer_provider = crate::trace::SdkTracerProvider::builder()
+                .with_id_generator(TestIdGenerator { random })
+                .build();
+            let tracer = tracer_provider.tracer("test");
+            let span = tracer.start_with_context("child", &invalid_parent);
+            let sc = span.span_context();
+            assert!(sc.is_valid());
+            assert_eq!(sc.trace_id(), TraceId::from(1));
+            assert_eq!(
+                span.exported_data().unwrap().parent_span_id,
+                SpanId::INVALID
+            );
+            assert_eq!(
+                sc.trace_flags(),
+                TraceFlags::SAMPLED.with_random(random),
+                "random = {random}"
+            );
+        }
+    }
+
+    #[test]
+    fn dropped_child_keeps_only_random_flag() {
+        // Propagators may stash private bits (e.g. B3's deferred marker) in the
+        // parent's flags; a local `Drop` decision must not carry them forward.
+        let private_bit = TraceFlags::new(0x80);
+        let tracer_provider = crate::trace::SdkTracerProvider::builder()
+            .with_sampler(Sampler::AlwaysOff)
+            .build();
+        let tracer = tracer_provider.tracer("test");
+
+        let child =
+            tracer.start_with_context("child", &remote_parent(TraceFlags::RANDOM | private_bit));
+        assert_eq!(child.span_context().trace_flags(), TraceFlags::RANDOM);
+
+        let child = tracer.start_with_context("child", &remote_parent(private_bit));
+        assert_eq!(child.span_context().trace_flags(), TraceFlags::default());
+    }
+
+    #[test]
+    fn recording_children_clear_private_parent_flags() {
+        for random in [false, true] {
+            let parent = remote_parent(TraceFlags::new(0xff).with_random(random));
+            let sampled_provider = crate::trace::SdkTracerProvider::builder()
+                .with_sampler(Sampler::AlwaysOn)
+                .build();
+            let sampled = sampled_provider
+                .tracer("test")
+                .start_with_context("child", &parent);
+            assert!(sampled.is_recording());
+            assert_eq!(
+                sampled.span_context().trace_flags(),
+                TraceFlags::SAMPLED.with_random(random)
+            );
+
+            let recording_provider = crate::trace::SdkTracerProvider::builder()
+                .with_sampler(RecordOnlySampler)
+                .build();
+            let recording = recording_provider
+                .tracer("test")
+                .start_with_context("child", &parent);
+            assert!(recording.is_recording());
+            assert_eq!(
+                recording.span_context().trace_flags(),
+                TraceFlags::NOT_SAMPLED.with_random(random)
+            );
+        }
+    }
+
+    #[test]
+    fn parent_with_invalid_span_id_but_valid_trace_id_inherits_trace_id() {
+        use crate::trace::{InMemorySpanExporter, SimpleSpanProcessor};
+
+        let exporter = InMemorySpanExporter::default();
+        let tracer_provider = crate::trace::SdkTracerProvider::builder()
+            // Root is AlwaysOn; the local-not-sampled branch would drop instead.
+            .with_sampler(Sampler::parent_based(Sampler::AlwaysOn))
+            .with_span_processor(SimpleSpanProcessor::new(exporter.clone()))
+            .build();
+        let tracer = tracer_provider.tracer("test");
+
+        // A parent with a valid trace id but an invalid (all-zero) span id, e.g. a
+        // remote span context from an upstream service that does not create a root
+        // span but wants all downstream operations to share the same trace.
+        let parent_trace_id = TraceId::from(123);
+        let parent_cx = Context::new().with_span(TestSpan(SpanContext::new(
+            parent_trace_id,
+            SpanId::INVALID,
+            TraceFlags::SAMPLED,
+            true,
+            TraceState::default(),
+        )));
+
+        let span = tracer.build_with_context(tracer.span_builder("child"), &parent_cx);
+        let span_context = span.span_context().clone();
+        drop(span);
+
+        assert_eq!(
+            span_context.trace_id(),
+            parent_trace_id,
+            "a child must inherit the trace id of a parent that has a valid trace id, \
+             even when the parent's span id is invalid"
+        );
+        assert!(span_context.is_valid());
+
+        let spans = exporter.get_finished_spans().unwrap();
+        assert_eq!(spans.len(), 1);
+        assert_eq!(spans[0].span_context.trace_id(), parent_trace_id);
+        assert_eq!(
+            spans[0].parent_span_id,
+            SpanId::INVALID,
+            "an invalid parent span id must not be recorded as the parent span id"
+        );
+    }
+
+    #[test]
+    fn invalid_parent_starts_a_new_trace() {
+        use crate::trace::{InMemorySpanExporter, SimpleSpanProcessor};
+
+        let exporter = InMemorySpanExporter::default();
+        let tracer_provider = crate::trace::SdkTracerProvider::builder()
+            // Root is AlwaysOn; the local-not-sampled branch would drop instead.
+            .with_sampler(Sampler::parent_based(Sampler::AlwaysOn))
+            .with_span_processor(SimpleSpanProcessor::new(exporter.clone()))
+            .build();
+        let tracer = tracer_provider.tracer("test");
+
+        // An active parent whose span context is invalid (e.g. a context carrying
+        // an invalid active span context). It must not be inherited as a parent.
+        let parent_cx = Context::current_with_span(TestSpan(SpanContext::new(
+            TraceId::INVALID,
+            SpanId::from(7),
+            TraceFlags::SAMPLED,
+            true,
+            TraceState::default(),
+        )));
+
+        let span = tracer.build_with_context(tracer.span_builder("child"), &parent_cx);
+        let span_context = span.span_context().clone();
+        drop(span);
+
+        assert!(
+            span_context.trace_id() != TraceId::INVALID,
+            "a recorded span must not inherit an invalid parent's all-zero trace id"
+        );
+        assert!(span_context.is_valid());
+
+        let spans = exporter.get_finished_spans().unwrap();
+        assert_eq!(spans.len(), 1);
+        assert_eq!(spans[0].span_context.trace_id(), span_context.trace_id());
+        assert_eq!(
+            spans[0].parent_span_id,
+            SpanId::INVALID,
+            "an invalid parent must not be recorded as the parent"
+        );
     }
 }

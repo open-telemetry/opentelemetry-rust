@@ -55,7 +55,7 @@ fn build_batch_tracer_provider<R: RuntimeChannel>(
         .build()
 }
 
-#[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
+#[cfg(feature = "rt-tokio")]
 fn build_simple_tracer_provider(exporter: SpanCountExporter) -> crate::trace::SdkTracerProvider {
     use crate::trace::SdkTracerProvider;
     SdkTracerProvider::builder()

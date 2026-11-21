@@ -3,11 +3,48 @@ use crate::metrics::{
     Temporality,
 };
 use opentelemetry::KeyValue;
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use std::sync::atomic::Ordering;
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use std::sync::Arc;
 
 use super::{
     aggregate::{AggregateTimeInitiator, AttributeSetFilter},
     Aggregator, AtomicTracker, AtomicallyUpdate, ComputeAggregation, Measure, Number, ValueMap,
 };
+use super::{AttributeBuildHasher, SharedFactory};
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use super::{BoundMeasure, NoopBoundMeasure, TrackerEntry};
+use std::collections::hash_map::RandomState;
+
+/// Pre-bound gauge/last-value handle: writes go directly to a fixed
+/// `TrackerEntry` without per-call attribute lookup. The `tracker` is either
+/// a dedicated entry for the bound attribute set, or — if bind() hit the
+/// cardinality limit — the shared overflow tracker.
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+struct BoundLastValueHandle<T: Number> {
+    tracker: Arc<TrackerEntry<Assign<T>>>,
+}
+
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+impl<T: Number> BoundMeasure<T> for BoundLastValueHandle<T> {
+    fn call(&self, measurement: T) {
+        // Mirror unbound LastValue::call: ignore NaN and infinity so a bad
+        // measurement can't be exported before the next valid one overwrites it.
+        if !measurement.into_float().is_finite() {
+            return;
+        }
+        self.tracker.aggregator.update(measurement);
+        self.tracker.has_been_updated.store(true, Ordering::Release);
+    }
+}
+
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+impl<T: Number> Drop for BoundLastValueHandle<T> {
+    fn drop(&mut self) {
+        self.tracker.bound_count.fetch_sub(1, Ordering::Relaxed);
+    }
+}
 
 /// this is reused by PrecomputedSum
 pub(crate) struct Assign<T>
@@ -42,21 +79,22 @@ where
 }
 
 /// Summarizes a set of measurements as the last one made.
-pub(crate) struct LastValue<T: Number> {
-    value_map: ValueMap<Assign<T>>,
+pub(crate) struct LastValue<T: Number, S = RandomState> {
+    value_map: ValueMap<Assign<T>, S>,
     init_time: AggregateTimeInitiator,
     temporality: Temporality,
     filter: AttributeSetFilter,
 }
 
-impl<T: Number> LastValue<T> {
+impl<T: Number, S: AttributeBuildHasher> LastValue<T, S> {
     pub(crate) fn new(
         temporality: Temporality,
         filter: AttributeSetFilter,
         cardinality_limit: usize,
+        make_hasher: SharedFactory<S>,
     ) -> Self {
         LastValue {
-            value_map: ValueMap::new((), cardinality_limit),
+            value_map: ValueMap::new((), cardinality_limit, make_hasher),
             init_time: AggregateTimeInitiator::default(),
             temporality,
             filter,
@@ -89,7 +127,7 @@ impl<T: Number> LastValue<T> {
         self.value_map
             .collect_and_reset(&mut s_data.data_points, |attributes, aggr| GaugeDataPoint {
                 attributes,
-                value: aggr.value.get_value(),
+                value: aggr.value.get_and_reset_value(),
                 exemplars: vec![],
             });
 
@@ -133,20 +171,40 @@ impl<T: Number> LastValue<T> {
     }
 }
 
-impl<T> Measure<T> for LastValue<T>
+impl<T, S> Measure<T> for LastValue<T, S>
 where
     T: Number,
+    S: AttributeBuildHasher,
 {
     fn call(&self, measurement: T, attrs: &[KeyValue]) {
+        // Ignore NaN and infinity: `Assign::update` overwrites unconditionally,
+        // so a bad value would still be exported once before the next valid
+        // measurement replaces it.
+        if !measurement.into_float().is_finite() {
+            return;
+        }
         self.filter.apply(attrs, |filtered| {
             self.value_map.measure(measurement, filtered);
         })
     }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    fn bind(&self, attrs: &[KeyValue]) -> Box<dyn BoundMeasure<T>> {
+        let mut bound_attrs = Vec::new();
+        self.filter.apply(attrs, |filtered| {
+            bound_attrs = filtered.to_vec();
+        });
+        match self.value_map.bind(&bound_attrs) {
+            Some(tracker) => Box::new(BoundLastValueHandle { tracker }),
+            None => Box::new(NoopBoundMeasure::new()),
+        }
+    }
 }
 
-impl<T> ComputeAggregation for LastValue<T>
+impl<T, S> ComputeAggregation for LastValue<T, S>
 where
     T: Number,
+    S: AttributeBuildHasher,
 {
     fn call(&self, dest: Option<&mut AggregatedMetrics>) -> (usize, Option<AggregatedMetrics>) {
         let data = dest.and_then(|d| T::extract_metrics_data_mut(d));
@@ -155,5 +213,140 @@ where
             _ => self.cumulative(data),
         };
         (len, new.map(T::make_aggregated_metrics))
+    }
+}
+
+#[cfg(test)]
+mod nan_guard_tests {
+    use super::*;
+    use crate::metrics::data::{AggregatedMetrics, MetricData};
+    use std::sync::Arc;
+
+    #[test]
+    fn nan_and_infinity_are_ignored() {
+        let last_value = LastValue::<f64>::new(
+            Temporality::Cumulative,
+            AttributeSetFilter::new(None),
+            2000,
+            Arc::new(RandomState::new),
+        );
+        Measure::call(&last_value, 1.0, &[]);
+        Measure::call(&last_value, f64::NAN, &[]);
+        Measure::call(&last_value, f64::INFINITY, &[]);
+        Measure::call(&last_value, f64::NEG_INFINITY, &[]);
+
+        let (count, dp) = ComputeAggregation::call(&last_value, None);
+        let dp = dp.unwrap();
+        let AggregatedMetrics::F64(MetricData::Gauge(dp)) = dp else {
+            unreachable!()
+        };
+        assert_eq!(count, 1);
+        assert_eq!(dp.data_points[0].value, 1.0);
+    }
+}
+
+#[cfg(all(test, feature = "experimental_metrics_bound_instruments"))]
+mod tests {
+    use super::*;
+    use crate::metrics::data::{AggregatedMetrics, Gauge, MetricData};
+
+    fn extract_gauge(agg: AggregatedMetrics) -> Gauge<u64> {
+        match agg {
+            AggregatedMetrics::U64(MetricData::Gauge(g)) => g,
+            _ => panic!("expected u64 Gauge"),
+        }
+    }
+
+    /// Direct unit coverage for `LastValue::bind`. Sync `Gauge::bind()` is not yet
+    /// exposed in the public API, so the only callers of this code path today
+    /// are Views that remap an instrument to `Aggregation::LastValue`. This test
+    /// constructs the aggregator directly and exercises the bound handle through
+    /// the `Measure` / `BoundMeasure` traits to keep the impl honest.
+    #[test]
+    fn bind_writes_through_bound_handle() {
+        let last_value = LastValue::<u64>::new(
+            Temporality::Cumulative,
+            AttributeSetFilter::new(None),
+            100,
+            Arc::new(RandomState::new),
+        );
+        let attrs = [KeyValue::new("k", "v")];
+        let bound = Measure::bind(&last_value, &attrs);
+
+        bound.call(7);
+        bound.call(42); // overwrites previous value (LastValue semantics)
+
+        let (count, agg) = ComputeAggregation::call(&last_value, None);
+        assert_eq!(count, 1);
+        let gauge = extract_gauge(agg.expect("aggregation produced"));
+        assert_eq!(gauge.data_points.len(), 1);
+        assert_eq!(gauge.data_points[0].value, 42);
+        assert_eq!(gauge.data_points[0].attributes, attrs.to_vec());
+    }
+
+    #[test]
+    fn bound_handle_drop_decrements_bound_count() {
+        let last_value = LastValue::<u64>::new(
+            Temporality::Delta,
+            AttributeSetFilter::new(None),
+            100,
+            Arc::new(RandomState::new),
+        );
+        let attrs = [KeyValue::new("k", "v")];
+
+        let bound = Measure::bind(&last_value, &attrs);
+        bound.call(5);
+
+        // While the handle exists, the entry's bound_count is 1.
+        let trackers = last_value.value_map.trackers.read().unwrap();
+        let entry = trackers
+            .values()
+            .next()
+            .expect("entry should exist after bind+call");
+        assert_eq!(
+            entry.bound_count.load(Ordering::Relaxed),
+            1,
+            "bound_count should reflect a live handle"
+        );
+        drop(trackers);
+
+        drop(bound);
+
+        let trackers = last_value.value_map.trackers.read().unwrap();
+        let entry = trackers
+            .values()
+            .next()
+            .expect("entry should still exist post-drop");
+        assert_eq!(
+            entry.bound_count.load(Ordering::Relaxed),
+            0,
+            "bound_count should drop to 0 after handle drops"
+        );
+    }
+
+    #[test]
+    fn bound_nan_and_infinity_are_ignored() {
+        let last_value = LastValue::<f64>::new(
+            Temporality::Cumulative,
+            AttributeSetFilter::new(None),
+            2000,
+            Arc::new(RandomState::new),
+        );
+        let attrs = [KeyValue::new("k", "v")];
+        let bound = Measure::bind(&last_value, &attrs);
+
+        bound.call(1.0);
+        bound.call(f64::NAN);
+        bound.call(f64::INFINITY);
+        bound.call(f64::NEG_INFINITY);
+
+        let (count, dp) = ComputeAggregation::call(&last_value, None);
+        let dp = dp.unwrap();
+        let AggregatedMetrics::F64(MetricData::Gauge(dp)) = dp else {
+            unreachable!()
+        };
+        assert_eq!(count, 1);
+        assert_eq!(dp.data_points[0].value, 1.0);
+        assert_eq!(dp.data_points[0].attributes, attrs.to_vec());
     }
 }

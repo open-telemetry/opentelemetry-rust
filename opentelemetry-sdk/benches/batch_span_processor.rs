@@ -1,41 +1,8 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use opentelemetry::time::now;
-use opentelemetry::trace::{
-    SpanContext, SpanId, SpanKind, Status, TraceFlags, TraceId, TraceState,
-};
+use opentelemetry::trace::{Tracer, TracerProvider};
 use opentelemetry_sdk::testing::trace::NoopSpanExporter;
-use opentelemetry_sdk::trace::SpanData;
-use opentelemetry_sdk::trace::{
-    BatchConfigBuilder, BatchSpanProcessor, SpanEvents, SpanLinks, SpanProcessor,
-};
-use std::sync::Arc;
+use opentelemetry_sdk::trace::{BatchConfigBuilder, BatchSpanProcessor, SdkTracerProvider};
 use tokio::runtime::Runtime;
-
-fn get_span_data() -> Vec<SpanData> {
-    (0..200)
-        .map(|_| SpanData {
-            span_context: SpanContext::new(
-                TraceId::from(12),
-                SpanId::from(12),
-                TraceFlags::default(),
-                false,
-                TraceState::default(),
-            ),
-            parent_span_id: SpanId::from(12),
-            parent_span_is_remote: false,
-            span_kind: SpanKind::Client,
-            name: Default::default(),
-            start_time: now(),
-            end_time: now(),
-            attributes: Vec::new(),
-            dropped_attributes_count: 0,
-            events: SpanEvents::default(),
-            links: SpanLinks::default(),
-            status: Status::Unset,
-            instrumentation_scope: Default::default(),
-        })
-        .collect::<Vec<SpanData>>()
-}
 
 fn criterion_benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("BatchSpanProcessor");
@@ -56,22 +23,23 @@ fn criterion_benchmark(c: &mut Criterion) {
                                     .build(),
                             )
                             .build();
-                        let mut shared_span_processor = Arc::new(span_processor);
+                        let provider = SdkTracerProvider::builder()
+                            .with_span_processor(span_processor)
+                            .build();
+                        let tracer = provider.tracer("batch-span-processor-benchmark");
                         let mut handles = Vec::with_capacity(10);
                         for _ in 0..task_num {
-                            let span_processor = shared_span_processor.clone();
-                            let spans = get_span_data();
+                            let tracer = tracer.clone();
                             handles.push(tokio::spawn(async move {
-                                for span in spans {
-                                    span_processor.on_end(span);
+                                for _ in 0..200 {
+                                    let span = tracer.start("benchmark-span");
+                                    drop(span);
                                     tokio::task::yield_now().await;
                                 }
                             }));
                         }
                         futures_util::future::join_all(handles).await;
-                        let _ = Arc::<BatchSpanProcessor>::get_mut(&mut shared_span_processor)
-                            .unwrap()
-                            .shutdown();
+                        let _ = provider.shutdown();
                     });
                 })
             },

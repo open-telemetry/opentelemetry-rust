@@ -1,3 +1,7 @@
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use std::sync::atomic::Ordering;
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use std::sync::Arc;
 use std::{f64::consts::LOG2_E, mem::replace, ops::DerefMut, sync::Mutex};
 
 use opentelemetry::{otel_debug, KeyValue};
@@ -12,9 +16,43 @@ use super::{
     aggregate::{AggregateTimeInitiator, AttributeSetFilter},
     Aggregator, ComputeAggregation, Measure, Number, ValueMap,
 };
+use super::{AttributeBuildHasher, SharedFactory};
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use super::{BoundMeasure, NoopBoundMeasure, TrackerEntry};
+use std::collections::hash_map::RandomState;
 
 pub(crate) const EXPO_MAX_SCALE: i8 = 20;
 pub(crate) const EXPO_MIN_SCALE: i8 = -10;
+
+/// Pre-bound exponential-histogram handle: writes go directly to a fixed
+/// `TrackerEntry` without per-call attribute lookup. Unlike `BoundHistogramHandle`,
+/// no bucket precomputation happens at the call site — `update()` does scale
+/// resolution and bin assignment inside the entry's Mutex. The NaN/inf filter
+/// from the unbound `call()` path is preserved here.
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+struct BoundExpoHistogramHandle<T: Number> {
+    tracker: Arc<TrackerEntry<Mutex<ExpoHistogramDataPoint<T>>>>,
+}
+
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+impl<T: Number> BoundMeasure<T> for BoundExpoHistogramHandle<T> {
+    fn call(&self, measurement: T) {
+        // Mirror unbound ExpoHistogram::call: ignore NaN and infinity so that
+        // ExpoHistogramDataPoint::record's invariants are preserved.
+        if !measurement.into_float().is_finite() {
+            return;
+        }
+        self.tracker.aggregator.update(measurement);
+        self.tracker.has_been_updated.store(true, Ordering::Release);
+    }
+}
+
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+impl<T: Number> Drop for BoundExpoHistogramHandle<T> {
+    fn drop(&mut self) {
+        self.tracker.bound_count.fetch_sub(1, Ordering::Relaxed);
+    }
+}
 
 /// A single data point in an exponential histogram.
 #[derive(Debug, PartialEq)]
@@ -351,8 +389,8 @@ struct BucketConfig {
 ///
 /// Each histogram is scoped by attributes and the aggregation cycle the
 /// measurements were made in.
-pub(crate) struct ExpoHistogram<T: Number> {
-    value_map: ValueMap<Mutex<ExpoHistogramDataPoint<T>>>,
+pub(crate) struct ExpoHistogram<T: Number, S = RandomState> {
+    value_map: ValueMap<Mutex<ExpoHistogramDataPoint<T>>, S>,
     init_time: AggregateTimeInitiator,
     temporality: Temporality,
     filter: AttributeSetFilter,
@@ -360,8 +398,11 @@ pub(crate) struct ExpoHistogram<T: Number> {
     record_min_max: bool,
 }
 
-impl<T: Number> ExpoHistogram<T> {
+impl<T: Number, S: AttributeBuildHasher> ExpoHistogram<T, S> {
     /// Create a new exponential histogram.
+    // Mirrors the flat argument list of the other aggregator constructors,
+    // which `AggregateBuilder` calls uniformly.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         temporality: Temporality,
         filter: AttributeSetFilter,
@@ -370,6 +411,7 @@ impl<T: Number> ExpoHistogram<T> {
         record_min_max: bool,
         record_sum: bool,
         cardinality_limit: usize,
+        make_hasher: SharedFactory<S>,
     ) -> Self {
         ExpoHistogram {
             value_map: ValueMap::new(
@@ -378,6 +420,7 @@ impl<T: Number> ExpoHistogram<T> {
                     max_scale,
                 },
                 cardinality_limit,
+                make_hasher,
             ),
             init_time: AggregateTimeInitiator::default(),
             temporality,
@@ -412,9 +455,11 @@ impl<T: Number> ExpoHistogram<T> {
         h.start_time = time.start;
         h.time = time.current;
 
+        let config = *self.value_map.config();
         self.value_map
             .collect_and_reset(&mut h.data_points, |attributes, attr| {
-                let b = attr.into_inner().unwrap_or_else(|err| err.into_inner());
+                let reset = attr.clone_and_reset(&config);
+                let b = reset.into_inner().unwrap_or_else(|err| err.into_inner());
                 data::ExponentialHistogramDataPoint {
                     attributes,
                     count: b.count,
@@ -508,9 +553,10 @@ impl<T: Number> ExpoHistogram<T> {
     }
 }
 
-impl<T> Measure<T> for ExpoHistogram<T>
+impl<T, S> Measure<T> for ExpoHistogram<T, S>
 where
     T: Number,
+    S: AttributeBuildHasher,
 {
     fn call(&self, measurement: T, attrs: &[KeyValue]) {
         let f_value = measurement.into_float();
@@ -524,11 +570,24 @@ where
             self.value_map.measure(measurement, filtered);
         })
     }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    fn bind(&self, attrs: &[KeyValue]) -> Box<dyn BoundMeasure<T>> {
+        let mut bound_attrs = Vec::new();
+        self.filter.apply(attrs, |filtered| {
+            bound_attrs = filtered.to_vec();
+        });
+        match self.value_map.bind(&bound_attrs) {
+            Some(tracker) => Box::new(BoundExpoHistogramHandle { tracker }),
+            None => Box::new(NoopBoundMeasure::new()),
+        }
+    }
 }
 
-impl<T> ComputeAggregation for ExpoHistogram<T>
+impl<T, S> ComputeAggregation for ExpoHistogram<T, S>
 where
     T: Number,
+    S: AttributeBuildHasher,
 {
     fn call(&self, dest: Option<&mut AggregatedMetrics>) -> (usize, Option<AggregatedMetrics>) {
         let data = dest.and_then(|d| T::extract_metrics_data_mut(d));
@@ -549,6 +608,7 @@ mod tests {
     use crate::metrics::internal::{self, AggregateBuilder};
 
     use super::*;
+    use std::sync::Arc;
 
     const CARDINALITY_LIMIT_DEFAULT: usize = 2000;
 
@@ -717,11 +777,12 @@ mod tests {
                 true,
                 true,
                 CARDINALITY_LIMIT_DEFAULT,
+                Arc::new(RandomState::new),
             );
             for v in test.values {
                 Measure::call(&h, v, &[]);
             }
-            let dp = h.value_map.no_attribute_tracker.lock().unwrap();
+            let dp = h.value_map.no_attribute_tracker.aggregator.lock().unwrap();
 
             assert_eq!(test.expected.max, dp.max);
             assert_eq!(test.expected.min, dp.min);
@@ -774,11 +835,12 @@ mod tests {
                 true,
                 true,
                 CARDINALITY_LIMIT_DEFAULT,
+                Arc::new(RandomState::new),
             );
             for v in test.values {
                 Measure::call(&h, v, &[]);
             }
-            let dp = h.value_map.no_attribute_tracker.lock().unwrap();
+            let dp = h.value_map.no_attribute_tracker.aggregator.lock().unwrap();
 
             assert_eq!(test.expected.max, dp.max);
             assert_eq!(test.expected.min, dp.min);

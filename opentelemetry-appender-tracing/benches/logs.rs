@@ -14,13 +14,14 @@
 
     Hardware: Apple M4 Pro
     Total Number of Cores:	14 (10 performance and 4 efficiency)
+    rustc 1.95.0 (59807616e 2026-04-14)
     | Test                        | Average time|
     |-----------------------------|-------------|
-    | log_no_subscriber           | 285 ps      |
-    | noop_layer_disabled         | 8 ns       |
-    | noop_layer_enabled          | 14 ns       |
-    | ot_layer_disabled           | 12 ns       |
-    | ot_layer_enabled            | 130 ns      |
+    | log_no_subscriber           | 262 ps      |
+    | noop_layer_disabled         |   4 ns      |
+    | noop_layer_enabled          |  12 ns      |
+    | ot_layer_disabled           |   7 ns      |
+    | ot_layer_enabled            | 122 ns      |
 */
 
 use criterion::{criterion_group, criterion_main, Criterion};

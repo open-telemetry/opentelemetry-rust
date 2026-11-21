@@ -7,6 +7,11 @@
 
     Hardware: AMD EPYC 7763 64-Core Processor - 2.44 GHz, 16vCPUs,
     ~20 M /sec
+
+    OS: macOS 26.4.1
+    Hardware: Apple M4 Pro, 14 cores (10 performance + 4 efficiency)
+    RAM: 24.0 GB
+    ~1.65 M /sec
 */
 
 use lazy_static::lazy_static;

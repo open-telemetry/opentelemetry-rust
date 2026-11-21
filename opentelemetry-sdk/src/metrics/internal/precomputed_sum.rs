@@ -2,15 +2,57 @@ use opentelemetry::KeyValue;
 
 use crate::metrics::data::{self, AggregatedMetrics, MetricData, SumDataPoint};
 use crate::metrics::Temporality;
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use std::sync::atomic::Ordering;
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use std::sync::Arc;
 
 use super::aggregate::{AggregateTimeInitiator, AttributeSetFilter};
-use super::{last_value::Assign, AtomicTracker, Number, ValueMap};
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use super::Aggregator;
+use super::{last_value::Assign, sort_and_dedup, AtomicTracker, Number, ValueMap};
+use super::{AttributeBuildHasher, SharedFactory};
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use super::{BoundMeasure, NoopBoundMeasure, TrackerEntry};
 use super::{ComputeAggregation, Measure};
+use std::collections::hash_map::RandomState;
 use std::{collections::HashMap, sync::Mutex};
 
+/// Pre-bound precomputed-sum handle. Writes go directly to a fixed
+/// `TrackerEntry`. PrecomputedSum is used by asynchronous instruments
+/// (ObservableCounter / ObservableUpDownCounter), which do not expose `bind()`
+/// to user code, so this impl exists to satisfy the `Measure` trait and is
+/// not reachable via the public API today. The implementation mirrors
+/// `BoundLastValueHandle` since both share the `Assign<T>` aggregator.
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+struct BoundPrecomputedSumHandle<T: Number> {
+    tracker: Arc<TrackerEntry<Assign<T>>>,
+}
+
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+impl<T: Number> BoundMeasure<T> for BoundPrecomputedSumHandle<T> {
+    fn call(&self, measurement: T) {
+        // Mirror unbound PrecomputedSum::call: ignore NaN and infinity so a bad
+        // value can't get cached in `reported` and poison the delta computed
+        // against the next valid measurement.
+        if !measurement.into_float().is_finite() {
+            return;
+        }
+        self.tracker.aggregator.update(measurement);
+        self.tracker.has_been_updated.store(true, Ordering::Release);
+    }
+}
+
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+impl<T: Number> Drop for BoundPrecomputedSumHandle<T> {
+    fn drop(&mut self) {
+        self.tracker.bound_count.fetch_sub(1, Ordering::Relaxed);
+    }
+}
+
 /// Summarizes a set of pre-computed sums as their arithmetic sum.
-pub(crate) struct PrecomputedSum<T: Number> {
-    value_map: ValueMap<Assign<T>>,
+pub(crate) struct PrecomputedSum<T: Number, S = RandomState> {
+    value_map: ValueMap<Assign<T>, S>,
     init_time: AggregateTimeInitiator,
     temporality: Temporality,
     filter: AttributeSetFilter,
@@ -18,15 +60,16 @@ pub(crate) struct PrecomputedSum<T: Number> {
     reported: Mutex<HashMap<Vec<KeyValue>, T>>,
 }
 
-impl<T: Number> PrecomputedSum<T> {
+impl<T: Number, S: AttributeBuildHasher> PrecomputedSum<T, S> {
     pub(crate) fn new(
         temporality: Temporality,
         filter: AttributeSetFilter,
         monotonic: bool,
         cardinality_limit: usize,
+        make_hasher: SharedFactory<S>,
     ) -> Self {
         PrecomputedSum {
-            value_map: ValueMap::new((), cardinality_limit),
+            value_map: ValueMap::new((), cardinality_limit, make_hasher),
             init_time: AggregateTimeInitiator::default(),
             temporality,
             filter,
@@ -69,10 +112,13 @@ impl<T: Number> PrecomputedSum<T> {
         let mut new_reported = HashMap::with_capacity(reported.len());
 
         self.value_map
-            .collect_and_reset(&mut s_data.data_points, |attributes, aggr| {
+            .drain_and_reset(&mut s_data.data_points, |attributes, aggr| {
                 let value = aggr.value.get_value();
-                new_reported.insert(attributes.clone(), value);
-                let delta = value - *reported.get(&attributes).unwrap_or(&T::default());
+                // Canonicalize before caching in `reported`; otherwise the same
+                // attributes in a different order are cached as a distinct key.
+                let lookup_attributes = sort_and_dedup(&attributes);
+                let delta = value - *reported.get(&lookup_attributes).unwrap_or(&T::default());
+                new_reported.insert(lookup_attributes, value);
                 SumDataPoint {
                     attributes,
                     value: delta,
@@ -116,10 +162,10 @@ impl<T: Number> PrecomputedSum<T> {
         s_data.temporality = Temporality::Cumulative;
         s_data.is_monotonic = self.monotonic;
 
-        // Use collect_and_reset to remove stale attributes (not observed in current callback)
+        // Use drain_and_reset to remove stale attributes (not observed in current callback)
         // For cumulative, report absolute values (no delta calculation needed)
         self.value_map
-            .collect_and_reset(&mut s_data.data_points, |attributes, aggr| SumDataPoint {
+            .drain_and_reset(&mut s_data.data_points, |attributes, aggr| SumDataPoint {
                 attributes,
                 value: aggr.value.get_value(),
                 exemplars: vec![],
@@ -129,20 +175,40 @@ impl<T: Number> PrecomputedSum<T> {
     }
 }
 
-impl<T> Measure<T> for PrecomputedSum<T>
+impl<T, S> Measure<T> for PrecomputedSum<T, S>
 where
     T: Number,
+    S: AttributeBuildHasher,
 {
     fn call(&self, measurement: T, attrs: &[KeyValue]) {
+        // Ignore NaN and infinity: a cached NaN in `reported` poisons the delta
+        // computed against the *next* valid measurement too
+        // (`valid_val - NaN == NaN`), so a single bad value corrupts two cycles.
+        if !measurement.into_float().is_finite() {
+            return;
+        }
         self.filter.apply(attrs, |filtered| {
             self.value_map.measure(measurement, filtered);
         })
     }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    fn bind(&self, attrs: &[KeyValue]) -> Box<dyn BoundMeasure<T>> {
+        let mut bound_attrs = Vec::new();
+        self.filter.apply(attrs, |filtered| {
+            bound_attrs = filtered.to_vec();
+        });
+        match self.value_map.bind(&bound_attrs) {
+            Some(tracker) => Box::new(BoundPrecomputedSumHandle { tracker }),
+            None => Box::new(NoopBoundMeasure::new()),
+        }
+    }
 }
 
-impl<T> ComputeAggregation for PrecomputedSum<T>
+impl<T, S> ComputeAggregation for PrecomputedSum<T, S>
 where
     T: Number,
+    S: AttributeBuildHasher,
 {
     fn call(&self, dest: Option<&mut AggregatedMetrics>) -> (usize, Option<AggregatedMetrics>) {
         let data = dest.and_then(|d| T::extract_metrics_data_mut(d));
@@ -151,5 +217,188 @@ where
             _ => self.cumulative(data),
         };
         (len, new.map(T::make_aggregated_metrics))
+    }
+}
+
+#[cfg(test)]
+mod nan_guard_tests {
+    use super::*;
+    use crate::metrics::data::{AggregatedMetrics, MetricData};
+    use std::sync::Arc;
+
+    #[test]
+    fn nan_and_infinity_are_ignored() {
+        let pre_sum = PrecomputedSum::<f64>::new(
+            Temporality::Cumulative,
+            AttributeSetFilter::new(None),
+            true,
+            2000,
+            Arc::new(RandomState::new),
+        );
+        Measure::call(&pre_sum, 1.0, &[]);
+        Measure::call(&pre_sum, f64::NAN, &[]);
+        Measure::call(&pre_sum, f64::INFINITY, &[]);
+        Measure::call(&pre_sum, f64::NEG_INFINITY, &[]);
+
+        let (count, dp) = ComputeAggregation::call(&pre_sum, None);
+        let dp = dp.unwrap();
+        let AggregatedMetrics::F64(MetricData::Sum(dp)) = dp else {
+            unreachable!()
+        };
+        assert_eq!(count, 1);
+        assert_eq!(dp.data_points[0].value, 1.0);
+    }
+
+    #[test]
+    fn nan_in_delta_temporality_leaves_baseline_cleared() {
+        // Under Delta temporality, dropping a NaN measurement leaves `value_map`
+        // unobserved for that collection cycle. When `drain_and_reset` runs,
+        // `new_reported` does not include the attribute set, which clears the
+        // baseline in `reported`. Consequently, a subsequent valid observation
+        // calculates delta against 0 rather than the previous valid value (100),
+        // re-counting the earlier observation.
+        //
+        // This mirrors the behavior of missing/skipped observations in async instruments
+        // today. Baseline recovery across unobserved cycles without unbounded memory
+        // growth (stale-attribute eviction) is tracked separately.
+        let pre_sum = PrecomputedSum::<f64>::new(
+            Temporality::Delta,
+            AttributeSetFilter::new(None),
+            true,
+            2000,
+            Arc::new(RandomState::new),
+        );
+
+        // 1. Initial valid measurement: 100.0
+        Measure::call(&pre_sum, 100.0, &[]);
+        let (count, dp) = ComputeAggregation::call(&pre_sum, None);
+        let dp = dp.unwrap();
+        let AggregatedMetrics::F64(MetricData::Sum(dp)) = dp else {
+            unreachable!()
+        };
+        assert_eq!(count, 1);
+        assert_eq!(dp.data_points[0].value, 100.0);
+
+        // 2. Bad measurement: NaN (dropped by the guard)
+        Measure::call(&pre_sum, f64::NAN, &[]);
+        let (count, dp) = ComputeAggregation::call(&pre_sum, None);
+        // Since NaN was ignored, no points were updated; collection returns count 0
+        assert_eq!(count, 0);
+        let dp = dp.unwrap();
+        let AggregatedMetrics::F64(MetricData::Sum(dp)) = dp else {
+            unreachable!()
+        };
+        assert!(dp.data_points.is_empty());
+
+        // 3. Next valid measurement: 110.0
+        Measure::call(&pre_sum, 110.0, &[]);
+        let (count, dp) = ComputeAggregation::call(&pre_sum, None);
+        let dp = dp.unwrap();
+        let AggregatedMetrics::F64(MetricData::Sum(dp)) = dp else {
+            unreachable!()
+        };
+        assert_eq!(count, 1);
+        // Document current behavior: baseline was cleared when cycle 2 had no observation,
+        // so delta is 110.0 - 0.0 = 110.0 rather than 110.0 - 100.0 = 10.0.
+        assert_eq!(dp.data_points[0].value, 110.0);
+    }
+}
+
+#[cfg(all(test, feature = "experimental_metrics_bound_instruments"))]
+mod tests {
+    use super::*;
+    use crate::metrics::data::{AggregatedMetrics, MetricData, Sum};
+    use std::sync::atomic::Ordering;
+
+    fn extract_sum(agg: AggregatedMetrics) -> Sum<u64> {
+        match agg {
+            AggregatedMetrics::U64(MetricData::Sum(s)) => s,
+            _ => panic!("expected u64 Sum"),
+        }
+    }
+
+    /// PrecomputedSum is used by ObservableCounter / ObservableUpDownCounter, which
+    /// do not expose `bind()` to user code. The `Measure::bind` impl exists so the
+    /// trait is uniform across all aggregators (and future Observable bind()
+    /// extensions are mechanical). This test exercises the impl directly so the
+    /// otherwise-unreachable code path stays honest.
+    #[test]
+    fn bind_writes_through_bound_handle() {
+        let pre_sum = PrecomputedSum::<u64>::new(
+            Temporality::Cumulative,
+            AttributeSetFilter::new(None),
+            true,
+            100,
+            Arc::new(RandomState::new),
+        );
+        let attrs = [KeyValue::new("k", "v")];
+        let bound = Measure::bind(&pre_sum, &attrs);
+
+        bound.call(99); // PrecomputedSum semantics: each call assigns the absolute value
+
+        let (count, agg) = ComputeAggregation::call(&pre_sum, None);
+        assert_eq!(count, 1);
+        let sum = extract_sum(agg.expect("aggregation produced"));
+        assert_eq!(sum.data_points.len(), 1);
+        assert_eq!(sum.data_points[0].value, 99);
+        assert_eq!(sum.data_points[0].attributes, attrs.to_vec());
+    }
+
+    #[test]
+    fn bound_handle_drop_decrements_bound_count() {
+        let pre_sum = PrecomputedSum::<u64>::new(
+            Temporality::Delta,
+            AttributeSetFilter::new(None),
+            true,
+            100,
+            Arc::new(RandomState::new),
+        );
+        let attrs = [KeyValue::new("k", "v")];
+        let bound = Measure::bind(&pre_sum, &attrs);
+        bound.call(5);
+
+        let trackers = pre_sum.value_map.trackers.read().unwrap();
+        let entry = trackers
+            .values()
+            .next()
+            .expect("entry should exist after bind+call");
+        assert_eq!(entry.bound_count.load(Ordering::Relaxed), 1);
+        drop(trackers);
+
+        drop(bound);
+
+        let trackers = pre_sum.value_map.trackers.read().unwrap();
+        let entry = trackers
+            .values()
+            .next()
+            .expect("entry should still exist post-drop");
+        assert_eq!(entry.bound_count.load(Ordering::Relaxed), 0);
+    }
+
+    #[test]
+    fn bound_nan_and_infinity_are_ignored() {
+        let pre_sum = PrecomputedSum::<f64>::new(
+            Temporality::Cumulative,
+            AttributeSetFilter::new(None),
+            true,
+            2000,
+            Arc::new(RandomState::new),
+        );
+        let attrs = [KeyValue::new("k", "v")];
+        let bound = Measure::bind(&pre_sum, &attrs);
+
+        bound.call(1.0);
+        bound.call(f64::NAN);
+        bound.call(f64::INFINITY);
+        bound.call(f64::NEG_INFINITY);
+
+        let (count, dp) = ComputeAggregation::call(&pre_sum, None);
+        let dp = dp.unwrap();
+        let AggregatedMetrics::F64(MetricData::Sum(dp)) = dp else {
+            unreachable!()
+        };
+        assert_eq!(count, 1);
+        assert_eq!(dp.data_points[0].value, 1.0);
+        assert_eq!(dp.data_points[0].attributes, attrs.to_vec());
     }
 }

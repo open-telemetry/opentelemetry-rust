@@ -17,6 +17,9 @@ pub use in_memory_exporter::{InMemoryLogExporter, InMemoryLogExporterBuilder};
 
 pub use batch_log_processor::{
     BatchConfig, BatchConfigBuilder, BatchLogProcessor, BatchLogProcessorBuilder,
+    OTEL_BLRP_EXPORT_TIMEOUT, OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE,
+    OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT, OTEL_BLRP_MAX_QUEUE_SIZE,
+    OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT, OTEL_BLRP_SCHEDULE_DELAY, OTEL_BLRP_SCHEDULE_DELAY_DEFAULT,
 };
 pub use export::{LogBatch, LogExporter};
 pub use log_processor::LogProcessor;
@@ -24,10 +27,6 @@ pub use logger::SdkLogger;
 pub use logger_provider::{LoggerProviderBuilder, SdkLoggerProvider};
 pub use record::{SdkLogRecord, TraceContext};
 pub use simple_log_processor::SimpleLogProcessor;
-
-#[cfg(feature = "experimental_logs_concurrent_log_processor")]
-/// Module for ConcurrentLogProcessor.
-pub mod concurrent_log_processor;
 
 #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
 /// Module for BatchLogProcessor with async runtime.

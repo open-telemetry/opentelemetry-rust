@@ -144,6 +144,10 @@ impl<T: trace::Span> ObjectSafeSpan for T {
         self.add_link(span_context, attributes)
     }
 
+    fn end(&mut self) {
+        self.end()
+    }
+
     fn end_with_timestamp(&mut self, timestamp: SystemTime) {
         self.end_with_timestamp(timestamp)
     }
@@ -226,6 +230,11 @@ impl trace::Span for BoxedSpan {
     ///
     fn add_link(&mut self, span_context: trace::SpanContext, attributes: Vec<KeyValue>) {
         self.0.add_link(span_context, attributes)
+    }
+
+    /// Finishes the span.
+    fn end(&mut self) {
+        self.0.end();
     }
 
     /// Finishes the span with given timestamp.
@@ -436,5 +445,59 @@ where
         otel_info!(name: "TracerProvider.GlobalSet", message = "Global tracer provider is set. Traces can now be created using global::tracer() or global::tracer_with_scope().");
     } else {
         otel_error!(name: "TracerProvider.GlobalSetFailed", message = "Setting global tracer provider failed. Traces created using global::tracer() or global::tracer_with_scope() will not function. Report this issue in OpenTelemetry repo.");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::trace::Span;
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    struct EndSpan(Arc<AtomicBool>);
+
+    impl Span for EndSpan {
+        fn add_event_with_timestamp<T>(&mut self, _: T, _: SystemTime, _: Vec<KeyValue>)
+        where
+            T: Into<Cow<'static, str>>,
+        {
+        }
+        fn span_context(&self) -> &SpanContext {
+            static CX: SpanContext = SpanContext::NONE;
+            &CX
+        }
+        fn is_recording(&self) -> bool {
+            true
+        }
+        fn set_attribute(&mut self, _: KeyValue) {}
+        fn set_status(&mut self, _: Status) {}
+        fn update_name<T: Into<Cow<'static, str>>>(&mut self, _: T) {}
+        fn add_link(&mut self, _: SpanContext, _: Vec<KeyValue>) {}
+        fn end(&mut self) {
+            self.0.store(true, Ordering::Relaxed);
+        }
+        fn end_with_timestamp(&mut self, _: SystemTime) {
+            panic!("end() should not call end_with_timestamp()");
+        }
+    }
+
+    #[test]
+    fn test_boxed_span_end_delegates_to_inner_span() {
+        let ended = Arc::new(AtomicBool::new(false));
+        let mut span = BoxedSpan::new(EndSpan(ended.clone()));
+        Span::end(&mut span);
+        assert!(ended.load(Ordering::Relaxed));
+    }
+
+    #[test]
+    fn test_span_ref_end_delegates_to_inner_span() {
+        use crate::trace::TraceContextExt;
+
+        let ended = Arc::new(AtomicBool::new(false));
+        let cx = Context::new().with_span(EndSpan(ended.clone()));
+        assert!(cx.span().is_recording());
+        cx.span().add_event("event", vec![]);
+        cx.span().end();
+        assert!(ended.load(Ordering::Relaxed));
     }
 }

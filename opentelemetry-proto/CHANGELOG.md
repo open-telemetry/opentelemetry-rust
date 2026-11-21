@@ -2,7 +2,42 @@
 
 ## vNext
 
+- **Bug fix**: OTLP span, link, and log record `flags` now carry only the W3C-defined
+  trace flags (`sampled`, `random-trace-id`); propagator-private bits such as the B3
+  propagator's deferred marker are no longer exported
+  ([#3270](https://github.com/open-telemetry/opentelemetry-rust/issues/3270)).
+- **Bug fix**: Accept OTLP/JSON `entityRefs` entries that omit empty fields such as
+  `descriptionKeys` instead of rejecting the entire request
+  ([#3866](https://github.com/open-telemetry/opentelemetry-rust/issues/3866)).
+## 0.33.1
+
+Released 2026-Oct-08
+
+- **Performance**: `group_spans_by_resource_and_scope` no longer clones every `SpanData`. The batch is owned by the function, so spans are now moved into the proto conversion instead of being grouped by reference and cloned. This cuts the transform time of a 512-span batch roughly in half. ([#3652](https://github.com/open-telemetry/opentelemetry-rust/pull/3652))
+- **Bug fix**: Accept omitted default fields in OTLP/JSON exponential histogram data points and buckets, summary quantile values, and exemplars instead of silently dropping the metric data. ([#3755](https://github.com/open-telemetry/opentelemetry-rust/issues/3755))
+- **Bug fix**: Encode `asInt` in OTLP/JSON `NumberDataPoint` and `Exemplar` as a decimal string, and accept both strings and numbers when decoding. A quoted `asInt`, as written by other OTLP/JSON producers, was silently dropped on decode.
+- **Bug fix**: Write and read the `Exemplar` value (`asInt` or `asDouble`) directly on the exemplar object instead of nesting it under `"value"`, so exemplar values round-trip with other OTLP/JSON producers and consumers.
+- **Feature**: Add support for protobuffer descriptor output. ([#3675](https://github.com/open-telemetry/opentelemetry-rust/pull/3675))
+
+## 0.33.0
+
+Released 2026-Sep-18
+
+- **Bug fix**: Keep OTLP logs with the same target but different scope versions,
+  attributes, or schema URLs in separate groups. Target still overrides the scope
+  name. Export each scope's schema URL instead of the resource's schema URL.
+- **Bug fix**: Accept empty `AnyValue` objects in OTLP/JSON payloads instead of rejecting the entire request.
+- **Bug fix**: Accept omitted resource fields in empty OTLP/JSON collector requests.
+- **Bug fix**: Accept `null` fields in OTLP/JSON `AnyValue` objects as unset.
+- **Bug fix**: Accept OTLP/JSON partial-success responses when protobuf default fields are omitted.
+
+## 0.32.0
+
+Released 2026-May-08
+
+- Update proto definitions to v1.10.0.
 - Updated `schemars` dependency to version 1.0.0.
+- **Bug fix**: `InstrumentationScope` version and attributes are now preserved when logs have a target set. Previously, setting a log target would discard the scope's version and attributes. ([#3276](https://github.com/open-telemetry/opentelemetry-rust/issues/3276))
 
 ## 0.31.0
 

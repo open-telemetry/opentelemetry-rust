@@ -23,10 +23,14 @@ use crate::{
     Resource,
 };
 
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use opentelemetry::KeyValue;
 use opentelemetry::{otel_debug, otel_error, otel_warn, Context, InstrumentationScope};
 
 use std::fmt::Debug;
 use std::sync::atomic::AtomicBool;
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use std::sync::atomic::AtomicUsize;
 use std::sync::Mutex;
 use std::time::Duration;
 
@@ -65,14 +69,64 @@ use std::time::Duration;
 pub struct SimpleLogProcessor<T: LogExporter> {
     exporter: Mutex<T>,
     is_shutdown: AtomicBool,
+
+    // Self-diagnostics: otel.sdk.processor.log.processed counter, gated behind
+    // experimental_metrics_bound_instruments so the hot-path `add` is a single
+    // atomic increment with no per-call attribute resolution.
+    //
+    // The SimpleLogProcessor submits each record to the exporter synchronously
+    // and has no queue, so the only processor-side drop is `already_shutdown`.
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    processed_success: opentelemetry::metrics::BoundCounter<u64>,
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    processed_after_shutdown: opentelemetry::metrics::BoundCounter<u64>,
 }
 
 impl<T: LogExporter> SimpleLogProcessor<T> {
     /// Creates a new instance of `SimpleLogProcessor`.
     pub fn new(exporter: T) -> Self {
+        #[cfg(feature = "experimental_metrics_bound_instruments")]
+        let (processed_success, processed_after_shutdown) = {
+            static INSTANCE_COUNTER: AtomicUsize = AtomicUsize::new(0);
+            let instance_id = INSTANCE_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            let component_name = format!("simple_log_processor/{instance_id}");
+
+            let meter = opentelemetry::global::meter("otel.sdk");
+            let counter = meter
+                .u64_counter("otel.sdk.processor.log.processed")
+                .with_description(
+                    "The number of log records for which the processing has finished, \
+                     either successful or failed.",
+                )
+                .with_unit("{log_record}")
+                .build();
+
+            // Attribute values follow the OTel semantic conventions for SDK metrics:
+            // https://github.com/open-telemetry/semantic-conventions/blob/main/docs/otel/sdk-metrics.md#metric-otelsdkprocessorlogprocessed
+            // https://github.com/open-telemetry/semantic-conventions/blob/main/docs/registry/attributes/otel.md#otel-component-attributes
+            let success_attrs = [
+                KeyValue::new("otel.component.type", "simple_log_processor"),
+                KeyValue::new("otel.component.name", component_name.clone()),
+            ];
+            let after_shutdown_attrs = [
+                KeyValue::new("error.type", "already_shutdown"),
+                KeyValue::new("otel.component.type", "simple_log_processor"),
+                KeyValue::new("otel.component.name", component_name),
+            ];
+
+            (
+                counter.bind(&success_attrs),
+                counter.bind(&after_shutdown_attrs),
+            )
+        };
+
         SimpleLogProcessor {
             exporter: Mutex::new(exporter),
             is_shutdown: AtomicBool::new(false),
+            #[cfg(feature = "experimental_metrics_bound_instruments")]
+            processed_success,
+            #[cfg(feature = "experimental_metrics_bound_instruments")]
+            processed_after_shutdown,
         }
     }
 }
@@ -82,6 +136,10 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
         let _suppress_guard = Context::enter_telemetry_suppressed_scope();
         // noop after shutdown
         if self.is_shutdown.load(std::sync::atomic::Ordering::Relaxed) {
+            // Record the post-shutdown drop in self-diagnostics before returning.
+            #[cfg(feature = "experimental_metrics_bound_instruments")]
+            self.processed_after_shutdown.add(1);
+
             // this is a warning, as the user is trying to log after the processor has been shutdown
             otel_warn!(
                 name: "SimpleLogProcessor.Emit.ProcessorShutdown",
@@ -89,14 +147,20 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
             return;
         }
 
-        let result = self
-            .exporter
-            .lock()
-            .map_err(|_| OTelSdkError::InternalFailure("SimpleLogProcessor mutex poison".into()))
-            .and_then(|exporter| {
+        let result = match self.exporter.lock() {
+            Ok(exporter) => {
                 let log_tuple = &[(record as &SdkLogRecord, instrumentation)];
+                // Count the record as processed right before submitting it to
+                // the exporter, independent of the export outcome, per semconv.
+                // Matches BatchLogProcessor, which records success before export.
+                #[cfg(feature = "experimental_metrics_bound_instruments")]
+                self.processed_success.add(1);
                 futures_executor::block_on(exporter.export(LogBatch::new(log_tuple)))
-            });
+            }
+            Err(_) => Err(OTelSdkError::InternalFailure(
+                "SimpleLogProcessor mutex poison".into(),
+            )),
+        };
         // Handle errors with specific static names
         match result {
             Err(OTelSdkError::InternalFailure(_)) => {
@@ -492,5 +556,133 @@ mod tests {
         let mut log_record = logger.create_log_record();
         log_record.set_severity_number(opentelemetry::logs::Severity::Error);
         logger.emit(log_record);
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    mod self_obs {
+        use super::*;
+
+        /// Sums the values of `otel.sdk.processor.log.processed` data points whose
+        /// `error.type` attribute equals `error_type` (or that have no `error.type`
+        /// attribute when `error_type` is `None`).
+        #[cfg(feature = "experimental_metrics_bound_instruments")]
+        fn sum_processed_log_records(
+            metric_exporter: &crate::metrics::InMemoryMetricExporter,
+            error_type: Option<&str>,
+        ) -> u64 {
+            use crate::metrics::data::{AggregatedMetrics, MetricData};
+
+            let metrics = metric_exporter.get_finished_metrics().unwrap();
+            let mut total: u64 = 0;
+            for rm in &metrics {
+                for sm in &rm.scope_metrics {
+                    for metric in &sm.metrics {
+                        if metric.name == "otel.sdk.processor.log.processed" {
+                            if let AggregatedMetrics::U64(MetricData::Sum(sum)) = &metric.data {
+                                for dp in sum.data_points() {
+                                    let dp_error_type = dp
+                                        .attributes()
+                                        .find(|kv| kv.key.as_str() == "error.type")
+                                        .map(|kv| kv.value.as_str().to_string());
+                                    let matches = match error_type {
+                                        Some(expected) => {
+                                            dp_error_type.as_deref() == Some(expected)
+                                        }
+                                        None => dp_error_type.is_none(),
+                                    };
+                                    if matches {
+                                        total += dp.value();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            total
+        }
+
+        /// Verifies that `otel.sdk.processor.log.processed` counts each record the
+        /// SimpleLogProcessor submits to the exporter (with no `error.type`),
+        /// independent of the export outcome.
+        ///
+        /// `#[ignore]`d because it mutates process-wide state via
+        /// `global::set_meter_provider()`. CI runs it in isolation via `test.sh`.
+        #[cfg(feature = "experimental_metrics_bound_instruments")]
+        #[test]
+        #[ignore]
+        fn self_diagnostics_counter_records_success() {
+            use crate::logs::InMemoryLogExporterBuilder;
+            use crate::metrics::{InMemoryMetricExporter, SdkMeterProvider};
+
+            let metric_exporter = InMemoryMetricExporter::default();
+            let meter_provider = SdkMeterProvider::builder()
+                .with_periodic_exporter(metric_exporter.clone())
+                .build();
+            opentelemetry::global::set_meter_provider(meter_provider.clone());
+
+            let log_exporter = InMemoryLogExporterBuilder::default().build();
+            let processor = SimpleLogProcessor::new(log_exporter);
+
+            let instrumentation = InstrumentationScope::default();
+            for _ in 0..10 {
+                let mut record = SdkLogRecord::new();
+                processor.emit(&mut record, &instrumentation);
+            }
+
+            meter_provider.force_flush().unwrap();
+
+            let processed = sum_processed_log_records(&metric_exporter, None);
+            assert_eq!(processed, 10, "expected 10 processed logs, got {processed}");
+
+            meter_provider.shutdown().unwrap();
+        }
+
+        /// Verifies that `otel.sdk.processor.log.processed` records post-shutdown
+        /// emits with `error.type = already_shutdown`.
+        ///
+        /// `#[ignore]`d because it mutates process-wide state via
+        /// `global::set_meter_provider()`. CI runs it in isolation via `test.sh`.
+        #[cfg(feature = "experimental_metrics_bound_instruments")]
+        #[test]
+        #[ignore]
+        fn self_diagnostics_counter_records_already_shutdown_drops() {
+            use crate::logs::InMemoryLogExporterBuilder;
+            use crate::metrics::{InMemoryMetricExporter, SdkMeterProvider};
+
+            let metric_exporter = InMemoryMetricExporter::default();
+            let meter_provider = SdkMeterProvider::builder()
+                .with_periodic_exporter(metric_exporter.clone())
+                .build();
+            opentelemetry::global::set_meter_provider(meter_provider.clone());
+
+            let log_exporter = InMemoryLogExporterBuilder::default().build();
+            let processor = SimpleLogProcessor::new(log_exporter);
+
+            // Shut the processor down; subsequent emits hit the already_shutdown branch.
+            processor.shutdown().unwrap();
+
+            let instrumentation = InstrumentationScope::default();
+            for _ in 0..7 {
+                let mut record = SdkLogRecord::new();
+                processor.emit(&mut record, &instrumentation);
+            }
+
+            meter_provider.force_flush().unwrap();
+
+            let already_shutdown =
+                sum_processed_log_records(&metric_exporter, Some("already_shutdown"));
+            assert_eq!(
+                already_shutdown, 7,
+                "expected 7 already_shutdown drops, got {already_shutdown}"
+            );
+            let success = sum_processed_log_records(&metric_exporter, None);
+            assert_eq!(
+                success, 0,
+                "post-shutdown emits must not be counted as success, got {success}"
+            );
+
+            meter_provider.shutdown().unwrap();
+        }
     }
 }

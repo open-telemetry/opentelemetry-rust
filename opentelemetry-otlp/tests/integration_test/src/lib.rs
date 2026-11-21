@@ -1,3 +1,9 @@
+#[cfg(any(
+    feature = "hyper-client",
+    feature = "reqwest-client",
+    feature = "reqwest-blocking-client"
+))]
+pub mod fake_otlp_http;
 pub mod logs_asserter;
 #[cfg(any(
     feature = "hyper-client",

@@ -2,9 +2,248 @@
 
 ## vNext
 
+- Improved metrics measurement performance by speeding up attribute set
+  lookups (faster `KeyValue` equality and boxed attribute keys).
+  ([#3787](https://github.com/open-telemetry/opentelemetry-rust/pull/3787))
+- Avoid retaining tracer providers for non-recording spans. Processors and
+  exporters may now shut down while non-recording spans are still active if the
+  last provider reference is dropped. ([#3774](https://github.com/open-telemetry/opentelemetry-rust/pull/3774))
+- **Breaking:** `IdGenerator` now requires an `is_random()` implementation;
+  custom generators need to add this method to their existing implementation:
+
+  ```diff
+   impl IdGenerator for MyGenerator {
+       // Existing new_trace_id and new_span_id methods.
+  +    fn is_random(&self) -> bool { false }
+   }
+  ```
+
+  Return `true` only if the right-most 7 bytes of every trace ID are generated
+  randomly or pseudo-randomly with uniform distribution.
+  `RandomIdGenerator` returns `true`. Root spans now carry `TraceFlags::RANDOM` when the
+  configured generator reports random trace IDs, child spans inherit it from their
+  parent, and local sampling decisions clear private propagator flags while retaining
+  `RANDOM`. `TraceContextPropagator` now propagates the `random-trace-id` flag
+  ([#3270](https://github.com/open-telemetry/opentelemetry-rust/issues/3270)).
+- Improved performance of non-recording spans: calling `Span::end()` no longer
+  reads the system clock when the span is not recording.
+  ([#3814](https://github.com/open-telemetry/opentelemetry-rust/pull/3814))
+- Fixed `BatchSpanProcessor` and `BatchLogProcessor` shutdown reporting success
+  when exporting the final queued telemetry failed.
+  ([#3793](https://github.com/open-telemetry/opentelemetry-rust/issues/3793))
+- Fixed `SdkTracer` to accept parent span contexts with valid trace id but invalid
+  span id on span creation.
+  ([#3790](https://github.com/open-telemetry/opentelemetry-rust/pull/3790))
+- Preserve the first batch export error when `BatchSpanProcessor` or
+  `BatchLogProcessor` drains multiple batches, so a later successful export cannot
+  make `force_flush()` report success. Remaining batches are still exported after
+  an error.
+  ([#3791](https://github.com/open-telemetry/opentelemetry-rust/pull/3791))
+- Added `MeterProviderBuilder::with_hasher` to configure the hasher used to look
+  up attribute sets when aggregating measurements (default remains std's
+  `RandomState`).
+  ([#3788](https://github.com/open-telemetry/opentelemetry-rust/pull/3788))
+- Added `ProbabilitySampler` behind the `experimental_trace_probability_sampler`
+  feature, implementing the OpenTelemetry Consistent Probability Sampling
+  specification. It evaluates 56-bit
+  rejection thresholds against randomness derived from input `ot=rv:...` TraceState
+  (including root spans) or the least significant 56 bits of the
+  TraceId, updates outgoing TraceState with `ot=th:...`, and supports configuration as
+  a standalone sampler or as a delegate within `ParentBasedSampler`.
+  Malformed `ot` sub-fields are discarded when encoding sampled TraceState so
+  valid explicit randomness is preserved
+  (Part of [#3195](https://github.com/open-telemetry/opentelemetry-rust/issues/3195)).
+- Fix several W3C compliance issues in `BaggagePropagator`:
+- **Breaking:** Fix several W3C compliance issues in `BaggagePropagator`.
+  Entries that were previously propagated may now be skipped, see the
+  `opentelemetry` changelog for migration examples.
+  ([#3785](https://github.com/open-telemetry/opentelemetry-rust/pull/3785))
+  - Entries accepted by `Baggage` but not propagatable (non-token names,
+    invalid metadata or exceeding the W3C 64 entry / 8192 byte limits) are
+    skipped on injection and reported through the
+    `BaggagePropagator.Inject.DroppedEntries` internal log.
+  - Metadata (properties) are validated against the W3C `property` grammar
+    and propagated verbatim in their percent-encoded form, so encoded
+    delimiters such as `%2C` are no longer emitted as literal `,`. Empty
+    properties (e.g. `;;` or a trailing `;`) make a member invalid.
+  - Values containing `=` are no longer truncated.
+  - `%` and `\` in values are now percent-encoded on injection.
+  - Only optional whitespace (space and tab) around members is trimmed.
+  - Names are no longer percent decoded.
+  - All `baggage` headers are read (via `Extractor::get_all`) and limits apply
+    to their combination.
+  - Percent encoded sequences that are not valid UTF-8 are replaced with
+    U+FFFD instead of dropping the member.
+  - Existing baggage in the context is kept when no valid member is extracted.
+  - The 8192 byte limit is enforced on the encoded header during injection.
+    Entries that do not fit  or whose metadata is not valid W3C `property`
+    syntax are skipped.
+  - The 64 entry limit is enforced by the propagator instead of `Baggage`.
+    Only entries that are actually injected count towards it.
+  - Internal logs no longer include the baggage header content.
+- Fixed `BatchSpanProcessor` exporting spans that were recorded but not sampled
+  (e.g. `SamplingDecision::RecordOnly`). It now drops them in `on_end`, matching
+  `SimpleSpanProcessor` and the specification.
+  ([#3812](https://github.com/open-telemetry/opentelemetry-rust/issues/3812))
+
+## 0.33.1
+
+Released 2026-Oct-08
+
+- Emit a one-time internal error diagnostic when the default `PeriodicReader`
+  worker thread panics (such as from an observable metric callback), and document
+  the callback panic contract.
+  ([#3640](https://github.com/open-telemetry/opentelemetry-rust/issues/3640))
+- Added `Sampler::parent_based(root)`, returning a `ParentBasedSampler` that lets
+  all 5 branches of the ParentBased sampler spec be configured independently
+  (root, and remote/local parent that is/isn't sampled) via `with_remote_parent_sampled`,
+  `with_remote_parent_not_sampled`, `with_local_parent_sampled`, and
+  `with_local_parent_not_sampled`. Previously `Sampler::ParentBased` only let you
+  override the root case; the other 4 were fixed to the spec defaults. Unset
+  branches keep those same defaults, so this is purely additive.
+  ([#3657](https://github.com/open-telemetry/opentelemetry-rust/issues/3657))
+- Fixed `Histogram`, `Sum`, `LastValue`, and `PrecomputedSum` aggregators (and
+  their bound-instrument handles) silently accepting NaN/Infinity
+  measurements. For `Histogram` and `Sum`, a single NaN measurement
+  permanently corrupted the cumulative `sum`/total for the rest of the
+  process's lifetime (`x + NaN == NaN`); `LastValue` and `PrecomputedSum`
+  self-healed on the next valid measurement but still exported one bad value
+  in the meantime, and `PrecomputedSum` under delta temporality corrupted two
+  export cycles. Non-finite measurements are now dropped before recording,
+  matching `ExponentialHistogram`'s existing behavior.
+  ([#3656](https://github.com/open-telemetry/opentelemetry-rust/issues/3656))
+- Fixed `SdkTracer` inheriting an invalid parent span context (e.g. a context
+  carrying an invalid active span context). Such a parent is now treated as no
+  parent: the span gets a freshly generated trace id instead of the parent's
+  all-zero one, and is not recorded as a child of it.
+  ([#3657](https://github.com/open-telemetry/opentelemetry-rust/issues/3657))
+- Log metric export failures at ERROR level in `PeriodicReader`, making
+  failures such as an unreachable collector visible without enabling DEBUG
+  logging.
+  ([#3754](https://github.com/open-telemetry/opentelemetry-rust/issues/3754))
+- `TraceContextPropagator` now follows the W3C Trace Context Level 2 `tracestate` rules.
+  Multiple `tracestate` header fields are combined into a single list, `tracestate` is
+  only parsed once `traceparent` is known to be valid, an invalid `tracestate` (see
+  the stricter `TraceState` parsing in `opentelemetry`) is discarded without
+  affecting `traceparent` and an empty `tracestate` header is no longer injected.
+  ([#3778](https://github.com/open-telemetry/opentelemetry-rust/issues/3778))
+
+## 0.33.0
+
+Released 2026-Sep-18
+
+- Publicly export the `OTEL_*`/`OTEL_*_DEFAULT` environment variable name and
+  default value constants for `BatchSpanProcessor` (`opentelemetry_sdk::trace`),
+  `BatchLogProcessor` (`opentelemetry_sdk::logs`), and `PeriodicReader`
+  (`opentelemetry_sdk::metrics`), so downstream configuration systems can read
+  the SDK's spec-defined defaults programmatically instead of duplicating
+  them. As part of this, `PeriodicReader`'s previously-private
+  `DEFAULT_INTERVAL`/`METRIC_EXPORT_INTERVAL_NAME` constants were renamed
+  to `OTEL_METRIC_EXPORT_INTERVAL_DEFAULT`/`OTEL_METRIC_EXPORT_INTERVAL` to
+  match the naming convention already used elsewhere.
+  ([#3623](https://github.com/open-telemetry/opentelemetry-rust/issues/3623))
+- Added SDK self-observability metrics, feature-gated behind
+  `experimental_metrics_bound_instruments`: `otel.sdk.log.created` counts log
+  records submitted to the SDK; `otel.sdk.processor.log.processed` and
+  `otel.sdk.processor.span.processed` count records and spans submitted to an
+  exporter by batch and simple processors, with `error.type` reporting items
+  dropped before submission; and `otel.sdk.processor.log.queue.capacity`
+  reports the configured `BatchLogProcessor` queue capacity.
+  ([#3514](https://github.com/open-telemetry/opentelemetry-rust/pull/3514),
+  [#3608](https://github.com/open-telemetry/opentelemetry-rust/pull/3608),
+  [#3609](https://github.com/open-telemetry/opentelemetry-rust/pull/3609),
+  [#3611](https://github.com/open-telemetry/opentelemetry-rust/pull/3611))
+- Made `futures-channel`, `futures-executor`, `futures-util`, and `thiserror`
+  optional, enabling a minimal SDK build. With `default-features = false`, the
+  SDK's only dependency is the `opentelemetry` API crate.
+  ([#3593](https://github.com/open-telemetry/opentelemetry-rust/pull/3593))
+- Bound instruments are now available for `Gauge` and `UpDownCounter` via the
+  new `BoundGauge<T>` and `BoundUpDownCounter<T>` types exposed by the
+  `opentelemetry` crate. Requires the `experimental_metrics_bound_instruments`
+  feature.
+- Fixed a race in `BatchSpanProcessor` and `BatchLogProcessor` where a
+  span/log enqueued just before `force_flush()` or `shutdown()` could be
+  missed by the flush and dropped at shutdown: the pending-item counter is
+  now incremented before enqueueing (and reverted if the queue is full), so
+  the worker's counter snapshot can no longer under-count items already in
+  the queue (#3453).
+- Default SDK Resource construction now falls back to `unknown_service` under
+  Miri instead of calling `std::env::current_exe()`, avoiding an abort in Miri
+  isolation mode while preserving the normal
+  `unknown_service:<process.executable.name>` fallback outside Miri.
+- Fixed asynchronous counters (`ObservableCounter`, `ObservableUpDownCounter`)
+  using delta temporality reporting incorrect deltas when observed attributes
+  were recorded in an unsorted key order.
+- **Breaking** `SpanProcessor::on_end` now takes `FinishedSpan<'_>` by value instead of `SpanData`.
+  - Completed spans are inspected via `FinishedSpan::span_data(&self) -> &SpanData`.
+  - Processors taking ownership call `FinishedSpan::into_owned(self) -> SpanData`. The last registered processor receives an owned wrapper and can move the data by calling `into_owned()`; earlier processors receive a borrowed wrapper and clone on `into_owned()`.
+  - Live `Span` instances provide clone-free inherent read methods (`parent_span_id`, `span_kind`, `name`, `start_time`, `attributes`, `dropped_attributes_count`, `events`, `dropped_events_count`, `links`, `dropped_links_count`, `status`, `instrumentation_scope`), while context is accessed via `Span::span_context()`.
+  - Custom span processors should update `on_end(&self, span: FinishedSpan<'_>)`, use `span.span_data()` for read-only access, and call `span.into_owned()` only when they need an owned `SpanData`.
+  Supersedes [#2962](https://github.com/open-telemetry/opentelemetry-rust/pull/2962).
+  Relates to [#2940](https://github.com/open-telemetry/opentelemetry-rust/issues/2940),
+  [#2726](https://github.com/open-telemetry/opentelemetry-rust/issues/2726),
+  [#2939](https://github.com/open-telemetry/opentelemetry-rust/issues/2939).
+- Fix `Span::end_with_timestamp` preserving explicit end times even when equal to start time,
+  instead of silently overwriting with the current time.
+
+## 0.32.1
+
+Released 2026-May-23
+
+- `BaggagePropagator` now enforces the W3C Baggage maximum header length
+  (8192 bytes) and maximum list-member count (64) when extracting an inbound
+  `baggage` header. Headers exceeding 8192 bytes are dropped at the
+  propagator boundary; headers with more than 64 list members are
+  truncated to the first 64 entries. The change keeps the propagator from
+  parsing attacker-controlled input beyond the W3C limits instead of doing
+  per-entry parse, decode, and allocation work only to discard the excess
+  on `Baggage` insert. See https://www.w3.org/TR/baggage/#limits.
+- Reverted the `SimpleSpanProcessor` telemetry suppression added in 0.32.0
+  (see #3494), which caused a `RefCell already borrowed` panic when a span
+  was started and dropped inside a `get_active_span` (or `Context::map_current`)
+  closure. Tracked in #3510. A proper fix for the underlying
+  `Context::map_current` re-entrancy will be investigated separately, after
+  which the suppression can be safely re-applied.
+- View-provided metric stream `name` (set via `Stream::builder().with_name(...)`)
+  is no longer validated against the instrument name syntax, per
+  [spec clarification](https://github.com/open-telemetry/opentelemetry-specification/pull/5094).
+  `unit` and other stream parameters continue to be validated.
+
+## 0.32.0
+
+Released 2026-May-08
+
+- `SimpleSpanProcessor` now suppresses telemetry during export, preventing
+  telemetry-induced-telemetry feedback loops. This aligns with the existing
+  behavior in `BatchSpanProcessor` and `SimpleLogProcessor`.
+- Removed `SimpleConcurrentLogProcessor` and the `experimental_logs_concurrent_log_processor`
+  feature flag. The use cases it was designed for (ETW/user_events exporters) are
+  better served by modeling those exporters as processors directly.
+- **Added** `Counter::bind()` and `Histogram::bind()` SDK implementations that
+  return pre-bound measurement handles (`BoundCounter<T>`, `BoundHistogram<T>`).
+  Bound instruments resolve the attribute-to-aggregator mapping once at bind time
+  and cache the result, eliminating per-call HashMap lookups. View attribute
+  filtering is applied at bind time so the hot path stays free of per-call
+  attribute processing. Bound and unbound recordings with the same (post-view)
+  attribute set always aggregate into the same data point, including the empty
+  attribute set. Bound entries are never evicted during delta collection while
+  a handle exists — idle cycles produce no export but the tracker persists. If
+  `bind()` is called at the cardinality limit, the handle binds directly to
+  the overflow tracker — its writes stay on the same direct (no-lookup) hot
+  path and consistently land in the `otel.metric.overflow=true` bucket for
+  the lifetime of the handle. To recover a bound handle after delta collection
+  frees space, drop the existing handle and call `bind()` again. Gated behind
+  the `experimental_metrics_bound_instruments` feature flag. Benchmarks show
+  ~28x speedup for counter operations and ~9x for histograms.
+- Delta metrics collection now uses in-place eviction instead of draining the
+  HashMap on every collect cycle. Stale attribute sets that received no measurements
+  since the last collection are evicted. Note: recovery from cardinality overflow
+  now requires 2 collect cycles — the first marks entries as stale, the second
+  evicts them.
 - **Breaking** The SDK `testing` feature is now runtime agnostic. [#3407][3407]
   - `TokioSpanExporter` and `new_tokio_test_exporter` have been renamed to `TestSpanExporter` and `new_test_exporter`.
   - The following transitive dependencies and features have been removed: `tokio/rt`, `tokio/time`, `tokio/macros`, `tokio/rt-multi-thread`, `tokio-stream`, `experimental_async_runtime`
+- Store `InstrumentationScope` in `Arc` internally in `SdkTracer`, making tracer clones cheaper (Arc refcount increment instead of deep copy).
 - Add 32-bit platform support by using `portable-atomic` for `AtomicI64` and `AtomicU64` in the metrics module. This enables compilation on 32-bit ARM targets (e.g., `armv5te-unknown-linux-gnueabi`, `armv7-unknown-linux-gnueabihf`).
 - `Aggregation` enum and `StreamBuilder::with_aggregation()` are now stable and no longer require the `spec_unstable_metrics_views` feature flag.
 - Fix `service.name` Resource attribute fallback to follow OpenTelemetry
@@ -19,24 +258,28 @@
 - **Breaking** Moved the following SDK sampling types from `opentelemetry::trace` to `opentelemetry_sdk::trace` [#3277][3277]:
   - `SamplingDecision`, `SamplingResult`
   - These types are SDK implementation details and should be imported from `opentelemetry_sdk::trace` instead.
-- Fix panics and exploding memory usage from large cardinality limit [#3290][3290]
+- `StreamBuilder::build()` now rejects `usize::MAX` as a cardinality limit
+  with a validation error. [#3506][3506]
 - Fix Histogram boundaries being ignored in the presence of views [#3312][3312]
 - `TracerProviderBuilder::with_sampler` allows to pass boxed instance of `ShouldSample` [#3313][3313]
 - Fix ObservableCounter and ObservableUpDownCounter now correctly report only data points from the current measurement cycle, removing stale attribute combinations that are no longer observed. [#3248][3248]
 - Fix panic when `SpanProcessor::on_end` calls `Context::current()` ([#3262][3262]).
   - Updated `SpanProcessor::on_end` documentation to clarify that `Context::current()` returns the parent context, not the span's context
+- Fix `traceparent` headers with unknown flags (e.g. W3C random-trace-id flag `0x02`) being incorrectly rejected. Unknown flags are now accepted and zeroed out as required by the W3C trace-context spec. [#3435][3435]
+- **Breaking** `InMemoryExporterError` has been removed and replaced by `OTelSdkError`, and a new `JaegerRemoteSamplerBuildError` introduced to replace last uses of `TraceError`. [#3458][3458]
+- "spec_unstable_logs_enabled" feature flag is removed. The capability (and the
+  backing specification) is now stable and is enabled by default. [#3278][3278]
 
 [3227]: https://github.com/open-telemetry/opentelemetry-rust/pull/3227
 [3277]: https://github.com/open-telemetry/opentelemetry-rust/pull/3277
-[3290]: https://github.com/open-telemetry/opentelemetry-rust/pull/3290
+[3278]: https://github.com/open-telemetry/opentelemetry-rust/pull/3278
 [3312]: https://github.com/open-telemetry/opentelemetry-rust/pull/3312
 [3248]: https://github.com/open-telemetry/opentelemetry-rust/pull/3248
 [3262]: https://github.com/open-telemetry/opentelemetry-rust/pull/3262
 [3407]: https://github.com/open-telemetry/opentelemetry-rust/pull/3407
-
-- "spec_unstable_logs_enabled" feature flag is removed. The capability (and the
-  backing specification) is now stable and is enabled by default.
-  [3278](https://github.com/open-telemetry/opentelemetry-rust/pull/3278)
+[3435]: https://github.com/open-telemetry/opentelemetry-rust/issues/3435
+[3458]: https://github.com/open-telemetry/opentelemetry-rust/pull/3458
+[3506]: https://github.com/open-telemetry/opentelemetry-rust/pull/3506
 
 ## 0.31.0
 

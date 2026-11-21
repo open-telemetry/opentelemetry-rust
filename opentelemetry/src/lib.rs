@@ -34,7 +34,12 @@
 //! # }
 //! ```
 //!
-//! See the [examples](https://github.com/open-telemetry/opentelemetry-rust/tree/main/examples) directory for different integration patterns.
+//! For a runnable getting-started example, see
+//! [`examples/tracing-grpc`](https://github.com/open-telemetry/opentelemetry-rust/tree/main/examples/tracing-grpc),
+//! which demonstrates creating spans and propagating trace context across a
+//! gRPC client and server. See the
+//! [examples](https://github.com/open-telemetry/opentelemetry-rust/tree/main/examples)
+//! directory for additional integration patterns.
 //!
 //! See the [`trace`] module docs for more information on creating and managing
 //! spans.
@@ -52,6 +57,10 @@
 //!    (e.g., counters, histograms).
 //! 3. **Record Measurements:** Use the instruments to record measurement values
 //!    along with optional attributes.
+//!
+//! For a runnable getting-started example, see
+//! [`examples/metrics-basic`](https://github.com/open-telemetry/opentelemetry-rust/tree/main/examples/metrics-basic),
+//! which exercises every instrument type.
 //!
 //! ## How Metrics work in OpenTelemetry
 //! In OpenTelemetry, raw measurements recorded using instruments are
@@ -104,6 +113,8 @@
 //!
 //! ## Example Usage
 //! ```
+//! # #[cfg(feature = "metrics")]
+//! # {
 //! use opentelemetry::{global, KeyValue};
 //!
 //! // Get a meter from a provider.
@@ -127,12 +138,8 @@
 //!     )
 //! })
 //! .build();
+//! # }
 //! ```
-//!
-//! See the
-//! [examples](https://github.com/open-telemetry/opentelemetry-rust/tree/main/examples/metrics-basic)
-//! directory that show a runnable example with all type of instruments.
-//!
 //!
 //! See the [`metrics`] module docs for more information on creating and
 //! managing instruments.
@@ -151,6 +158,10 @@
 //!  and
 //!  [`opentelemetry-appender-tracing`](https://crates.io/crates/opentelemetry-appender-tracing)
 //!  crates.
+//!
+//! For a runnable getting-started example, see
+//! [`examples/logs-basic`](https://github.com/open-telemetry/opentelemetry-rust/tree/main/examples/logs-basic),
+//! which uses the `tracing` appender to bridge logs to OpenTelemetry.
 //!
 //! # Crate Feature Flags
 //!
@@ -186,8 +197,6 @@
 //!   primarily used for learning/debugging purposes.
 //! - [`opentelemetry-prometheus`] provides a pipeline and exporter for sending
 //!   metrics information to [`Prometheus`].
-//! - [`opentelemetry-zipkin`] provides a pipeline and exporter for sending
-//!   trace information to [`Zipkin`].
 //!
 //!  In addition, there are several other useful crates in the [OTel Rust
 //!  Contrib
@@ -203,9 +212,7 @@
 //! [`opentelemetry-http`]: https://crates.io/crates/opentelemetry-http
 //! [`opentelemetry-otlp`]: https://crates.io/crates/opentelemetry-otlp
 //! [`opentelemetry-prometheus`]: https://crates.io/crates/opentelemetry-prometheus
-//! [`opentelemetry-zipkin`]: https://crates.io/crates/opentelemetry-zipkin
 //! [`Prometheus`]: https://prometheus.io
-//! [`Zipkin`]: https://zipkin.io
 //!
 //! # Supported Rust Versions
 //!
@@ -230,11 +237,7 @@
     unused
 )]
 #![allow(clippy::needless_doctest_main)]
-#![cfg_attr(
-    docsrs,
-    feature(doc_cfg, doc_auto_cfg),
-    deny(rustdoc::broken_intra_doc_links)
-)]
+#![cfg_attr(docsrs, feature(doc_cfg), deny(rustdoc::broken_intra_doc_links))]
 #![doc(
     html_logo_url = "https://raw.githubusercontent.com/open-telemetry/opentelemetry-rust/main/assets/logo.svg"
 )]

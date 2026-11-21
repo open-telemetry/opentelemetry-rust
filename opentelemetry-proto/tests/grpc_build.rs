@@ -1,3 +1,4 @@
+use prost::Message;
 use std::collections::HashMap;
 use std::path::Path;
 use tempfile::TempDir;
@@ -17,10 +18,11 @@ const TONIC_PROTO_FILES: &[&str] = &[
     "src/proto/tracez.proto",
 ];
 const TONIC_INCLUDES: &[&str] = &["src/proto/opentelemetry-proto", "src/proto"];
+const PROTO_DESCRIPTOR_FILE_NAME: &str = "descriptors.bin";
 
 #[test]
 fn build_tonic() {
-    let before_build = build_content_map(TONIC_OUT_DIR, true);
+    let before_build = build_content_map(TONIC_OUT_DIR);
 
     let out_dir = TempDir::new().expect("failed to create temp dir to store the generated files");
 
@@ -47,11 +49,20 @@ fn build_tonic() {
     // JSON files without those field cannot deserialize
     // we cannot add serde(default) to all generated types because enums cannot be annotated with serde(default)
     for path in [
+        "collector.trace.v1.ExportTraceServiceRequest",
+        "collector.logs.v1.ExportLogsServiceRequest",
+        "collector.metrics.v1.ExportMetricsServiceRequest",
+        "collector.profiles.v1development.ExportProfilesServiceRequest",
+        "collector.trace.v1.ExportTracePartialSuccess",
+        "collector.logs.v1.ExportLogsPartialSuccess",
+        "collector.metrics.v1.ExportMetricsPartialSuccess",
+        "collector.profiles.v1development.ExportProfilesPartialSuccess",
         "trace.v1.Span",
         "trace.v1.Span.Link",
         "trace.v1.ScopeSpans",
         "trace.v1.ResourceSpans",
         "common.v1.InstrumentationScope",
+        "common.v1.EntityRef",
         "resource.v1.Resource",
         "trace.v1.Span.Event",
         "trace.v1.Status",
@@ -68,6 +79,11 @@ fn build_tonic() {
         "metrics.v1.Summary",
         "metrics.v1.NumberDataPoint",
         "metrics.v1.HistogramDataPoint",
+        "metrics.v1.SummaryDataPoint",
+        "metrics.v1.ExponentialHistogramDataPoint",
+        "metrics.v1.ExponentialHistogramDataPoint.Buckets",
+        "metrics.v1.SummaryDataPoint.ValueAtQuantile",
+        "metrics.v1.Exemplar",
         "profiles.v1development.Function",
     ] {
         builder = builder.type_attribute(
@@ -96,31 +112,96 @@ fn build_tonic() {
             .field_attribute(path, "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_to_hex_string\", deserialize_with = \"crate::proto::serializers::deserialize_from_hex_string\"))]")
     }
 
+    // key_strindex is a profiling-only reference field added to common.v1.KeyValue.
+    // For non-profiles signals we keep the existing JSON shape by defaulting it on input
+    // and omitting it from output when it is zero.
+    builder = builder.field_attribute(
+        "common.v1.KeyValue.key_strindex",
+        "#[cfg_attr(feature = \"with-serde\", serde(default, skip_serializing_if = \"crate::proto::serializers::is_default\"))]",
+    );
+
     // special serializer and deserializer for timestamp
-    // OTLP/JSON format may uses string for timestamp
+    // OTLP/JSON format may use string for timestamp
     // the proto file uses u64 for timestamp
     // Thus, special serializer and deserializer are needed
     for path in [
+        //trace
         "trace.v1.Span.start_time_unix_nano",
         "trace.v1.Span.end_time_unix_nano",
         "trace.v1.Span.Event.time_unix_nano",
+        //logs
         "logs.v1.LogRecord.time_unix_nano",
         "logs.v1.LogRecord.observed_time_unix_nano",
+        //metrics
         "metrics.v1.HistogramDataPoint.start_time_unix_nano",
         "metrics.v1.HistogramDataPoint.time_unix_nano",
         "metrics.v1.NumberDataPoint.start_time_unix_nano",
         "metrics.v1.NumberDataPoint.time_unix_nano",
+        "metrics.v1.ExponentialHistogramDataPoint.start_time_unix_nano",
+        "metrics.v1.ExponentialHistogramDataPoint.time_unix_nano",
+        "metrics.v1.SummaryDataPoint.start_time_unix_nano",
+        "metrics.v1.SummaryDataPoint.time_unix_nano",
+        "metrics.v1.Exemplar.time_unix_nano",
     ] {
         builder = builder
             .field_attribute(path, "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_u64_to_string\", deserialize_with = \"crate::proto::serializers::deserialize_string_to_u64\"))]")
     }
-    for path in ["profiles.v1development.Profile.time_nanos"] {
+    for path in [
+        "profiles.v1development.Profile.time_nanos",
+        // `as_int` is an sfixed64 member of the value oneofs, written as a string in OTLP/JSON.
+        "metrics.v1.NumberDataPoint.value.as_int",
+        "metrics.v1.Exemplar.value.as_int",
+    ] {
         builder = builder
             .field_attribute(path, "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_i64_to_string\", deserialize_with = \"crate::proto::serializers::deserialize_string_to_i64\"))]")
     }
-    for path in ["profiles.v1development.Sample.timestamps_unix_nano"] {
-        builder = builder
-            .field_attribute(path, "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_vec_u64_to_string\", deserialize_with = \"crate::proto::serializers::deserialize_vec_string_to_vec_u64\"))]")
+    builder = builder.field_attribute(
+        "profiles.v1development.Sample.timestamps_unix_nano",
+        "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_vec_u64_to_string\", deserialize_with = \"crate::proto::serializers::deserialize_vec_string_to_vec_u64\"))]",
+    );
+
+    // special serializer and deserializer for metrics count
+    // OTLP/JSON format may use string for count
+    // the proto file uses u64 for count
+    // Thus, special serializer and deserializer are needed
+    for path in [
+        // metrics count and bucket fields
+        "metrics.v1.HistogramDataPoint.count",
+        "metrics.v1.ExponentialHistogramDataPoint.count",
+        "metrics.v1.ExponentialHistogramDataPoint.zero_count",
+        "metrics.v1.SummaryDataPoint.count",
+    ] {
+        builder = builder.field_attribute(
+            path,
+            "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_u64_to_string\", deserialize_with = \"crate::proto::serializers::deserialize_string_to_u64\"))]",
+        );
+    }
+
+    // special serializer and deserializer for metrics bucket counts
+    // OTLP/JSON format may use string for bucket counts
+    // the proto file uses u64 for bucket counts
+    // Thus, special serializer and deserializer are needed
+    for path in [
+        "metrics.v1.HistogramDataPoint.bucket_counts",
+        "metrics.v1.ExponentialHistogramDataPoint.Buckets.bucket_counts",
+    ] {
+        builder = builder.field_attribute(
+            path,
+            "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_vec_u64_to_string\", deserialize_with = \"crate::proto::serializers::deserialize_vec_string_to_vec_u64\"))]",
+        );
+    }
+
+    // Special handling for floating-point fields that might contain NaN, Infinity, or -Infinity
+    // TODO: More needs to be added here as we find more fields that need this special handling
+    for path in [
+        // metrics
+        "metrics.v1.SummaryDataPoint.ValueAtQuantile.value",
+        "metrics.v1.SummaryDataPoint.ValueAtQuantile.quantile",
+    ] {
+        builder = builder.field_attribute(
+            path,
+            "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_f64_special\", deserialize_with = \"crate::proto::serializers::deserialize_f64_special\"))]",
+        );
     }
 
     // special serializer and deserializer for value
@@ -129,21 +210,40 @@ fn build_tonic() {
         .field_attribute("common.v1.AnyValue.value", "#[cfg_attr(feature =\"with-serde\", serde(flatten, serialize_with = \"crate::proto::serializers::serialize_to_value\", deserialize_with = \"crate::proto::serializers::deserialize_from_value\"))]");
 
     // flatten
-    for path in ["metrics.v1.Metric.data", "metrics.v1.NumberDataPoint.value"] {
+    for path in [
+        "metrics.v1.Metric.data",
+        "metrics.v1.NumberDataPoint.value",
+        "metrics.v1.Exemplar.value",
+    ] {
         builder =
             builder.field_attribute(path, "#[cfg_attr(feature =\"with-serde\", serde(flatten))]");
     }
 
     builder
+        .file_descriptor_set_path(out_dir.path().join(PROTO_DESCRIPTOR_FILE_NAME))
         .out_dir(out_dir.path())
         .compile_protos(TONIC_PROTO_FILES, TONIC_INCLUDES)
         .expect("cannot compile protobuf using tonic");
 
-    let after_build = build_content_map(out_dir.path(), true);
+    // Reflection consumers don't need source_code_info (proto comments/locations).
+    // Strip it so the committed descriptor stays small (~19KB vs ~124KB) and stable across protoc versions.
+    let desc_path = out_dir.path().join(PROTO_DESCRIPTOR_FILE_NAME);
+    let raw = std::fs::read(&desc_path).expect("read descriptor set");
+    let mut set =
+        tonic_prost_build::FileDescriptorSet::decode(&raw[..]).expect("decode descriptor set");
+
+    for file in &mut set.file {
+        file.source_code_info = None;
+    }
+    let mut stripped = Vec::new();
+    prost::Message::encode(&set, &mut stripped).expect("encode descriptor set");
+    std::fs::write(&desc_path, stripped).expect("write descriptor set");
+
+    let after_build = build_content_map(out_dir.path());
     ensure_files_are_same(before_build, after_build, TONIC_OUT_DIR);
 }
 
-fn build_content_map(path: impl AsRef<Path>, normalize_line_feed: bool) -> HashMap<String, String> {
+fn build_content_map(path: impl AsRef<Path>) -> HashMap<String, Vec<u8>> {
     std::fs::read_dir(path)
         .expect("cannot open dictionary of generated files")
         .flatten()
@@ -153,12 +253,14 @@ fn build_content_map(path: impl AsRef<Path>, normalize_line_feed: bool) -> HashM
                 .file_name()
                 .expect("file name should always exist for generated files");
 
-            let mut file_contents = std::fs::read_to_string(path.clone())
-                .expect("cannot read from existing generated file");
+            let file_contents = if path.extension().is_some_and(|suffix| suffix == "bin") {
+                std::fs::read(path.clone()).expect("cannot read from existing generated file")
+            } else {
+                let file_contents = std::fs::read_to_string(path.clone())
+                    .expect("cannot read from existing generated file");
 
-            if normalize_line_feed {
-                file_contents = get_platform_specific_string(file_contents);
-            }
+                get_platform_specific_string(file_contents)
+            };
 
             (file_name.to_string_lossy().to_string(), file_contents)
         })
@@ -166,16 +268,16 @@ fn build_content_map(path: impl AsRef<Path>, normalize_line_feed: bool) -> HashM
 }
 
 ///  Returns a String which uses the platform specific new line feed character.
-fn get_platform_specific_string(input: String) -> String {
+fn get_platform_specific_string(input: String) -> Vec<u8> {
     if cfg!(windows) && !input.ends_with("\r\n") && input.ends_with('\n') {
-        return input.replace('\n', "\r\n");
+        return input.replace('\n', "\r\n").into();
     }
-    input
+    input.into()
 }
 
 fn ensure_files_are_same(
-    before_build: HashMap<String, String>,
-    after_build: HashMap<String, String>,
+    before_build: HashMap<String, Vec<u8>>,
+    after_build: HashMap<String, Vec<u8>>,
     target_dir: &'static str,
 ) {
     if after_build == before_build {

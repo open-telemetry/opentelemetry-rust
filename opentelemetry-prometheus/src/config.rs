@@ -6,16 +6,30 @@ use std::sync::{Arc, Mutex};
 use crate::{Collector, PrometheusExporter, ResourceSelector};
 
 /// [PrometheusExporter] configuration options
-#[derive(Default)]
 pub struct ExporterBuilder {
     registry: Option<prometheus::Registry>,
     disable_target_info: bool,
     without_units: bool,
     without_counter_suffixes: bool,
     namespace: Option<String>,
-    disable_scope_info: bool,
+    scope_info_enabled: bool,
     reader: ManualReaderBuilder,
     resource_selector: ResourceSelector,
+}
+
+impl Default for ExporterBuilder {
+    fn default() -> Self {
+        ExporterBuilder {
+            registry: None,
+            disable_target_info: false,
+            without_units: false,
+            without_counter_suffixes: false,
+            namespace: None,
+            scope_info_enabled: true,
+            reader: ManualReaderBuilder::default(),
+            resource_selector: ResourceSelector::default(),
+        }
+    }
 }
 
 impl fmt::Debug for ExporterBuilder {
@@ -26,7 +40,7 @@ impl fmt::Debug for ExporterBuilder {
             .field("without_units", &self.without_units)
             .field("without_counter_suffixes", &self.without_counter_suffixes)
             .field("namespace", &self.namespace)
-            .field("disable_scope_info", &self.disable_scope_info)
+            .field("scope_info_enabled", &self.scope_info_enabled)
             .finish()
     }
 }
@@ -66,20 +80,19 @@ impl ExporterBuilder {
         self
     }
 
-    /// Configures the exporter to not export the `otel_scope_info` metric.
+    /// Configures whether to export instrumentation scope labels on metric points.
     ///
-    /// If not specified, the exporter will create a `otel_scope_info` metric
-    /// containing the metrics' Instrumentation Scope, and also add labels about
-    /// Instrumentation Scope to all metric points.
-    pub fn without_scope_info(mut self) -> Self {
-        self.disable_scope_info = true;
+    /// If not specified, scope info is enabled and the exporter adds
+    /// `otel_scope_*` labels to all metric points.
+    pub fn scope_info_enabled(mut self, enabled: bool) -> Self {
+        self.scope_info_enabled = enabled;
         self
     }
 
     /// Configures the exporter to prefix metrics with the given namespace.
     ///
-    /// Metrics such as `target_info` and `otel_scope_info` are not prefixed since
-    /// these have special behavior based on their name.
+    /// Metrics such as `target_info` are not prefixed since these have special
+    /// behavior based on their name.
     pub fn with_namespace(mut self, namespace: impl Into<String>) -> Self {
         let mut namespace = namespace.into();
 
@@ -123,7 +136,7 @@ impl ExporterBuilder {
             disable_target_info: self.disable_target_info,
             without_units: self.without_units,
             without_counter_suffixes: self.without_counter_suffixes,
-            disable_scope_info: self.disable_scope_info,
+            scope_info_enabled: self.scope_info_enabled,
             create_target_info_once: OnceCell::new(),
             namespace: self.namespace,
             inner: Mutex::new(Default::default()),

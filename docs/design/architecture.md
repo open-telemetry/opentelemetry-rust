@@ -15,7 +15,7 @@ graph TD
     B --> C[opentelemetry-sdk]
     C --> D[Processors / Readers]
     D --> E[Exporters]
-    E -->|"protocols (OTLP, Zipkin, Prometheus, stdout)"| F[Back-end / Collector]
+    E -->|"protocols (OTLP, Prometheus, stdout)"| F[Back-end / Collector]
 ```
 Key points:
 1. The **API** crate is a lightweight facade that library and application code instrument against.

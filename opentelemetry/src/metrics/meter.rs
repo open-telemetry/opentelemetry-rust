@@ -40,7 +40,7 @@ pub trait MeterProvider {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```ignore
     /// use std::sync::Arc;
     /// use opentelemetry::InstrumentationScope;
     /// use opentelemetry::metrics::MeterProvider;

@@ -2,6 +2,17 @@
 
 ## vNext
 
+- Remove the deprecated crate from the repository. The final published version is 0.33.0. For replacements, see the [migration guidance](README.md).
+
+## 0.33.0
+
+Released 2026-Sep-18
+
+## 0.32.0
+
+Released 2026-May-08
+
+- **Deprecated**: The `opentelemetry-zipkin` crate is now deprecated. Use the OTLP exporter (`opentelemetry-otlp`) instead. Zipkin supports native OTLP ingestion. This crate will be removed in a future release.
 - `reqwest`'s crypto backend has changed from `ring` to `aws-lc-sys`.
 
 ## 0.31.0

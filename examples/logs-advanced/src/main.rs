@@ -1,4 +1,4 @@
-use opentelemetry::logs::{LogRecord, Severity};
+use opentelemetry::logs::{AnyValue, LogRecord, Severity};
 use opentelemetry::InstrumentationScope;
 use opentelemetry_appender_tracing::layer;
 use opentelemetry_sdk::error::OTelSdkResult;
@@ -9,14 +9,16 @@ use tracing_subscriber::{prelude::*, EnvFilter};
 
 fn main() {
     let exporter = opentelemetry_stdout::LogExporter::default();
-    let enriching_processor = EnrichmentLogProcessor::new(SimpleLogProcessor::new(exporter));
+    let processor = FilteringLogProcessor::new(EnrichmentLogProcessor::new(
+        SimpleLogProcessor::new(exporter),
+    ));
     let provider: SdkLoggerProvider = SdkLoggerProvider::builder()
         .with_resource(
             Resource::builder()
                 .with_service_name("log-appender-tracing-example")
                 .build(),
         )
-        .with_log_processor(enriching_processor)
+        .with_log_processor(processor)
         .build();
 
     // To prevent a telemetry-induced-telemetry loop, OpenTelemetry's own internal
@@ -57,12 +59,57 @@ fn main() {
     let _ = provider.shutdown();
 }
 
+/// A log processor that drops records when `event_id` is `20` and delegates
+/// all other records to the wrapped processor.
+#[derive(Debug)]
+pub struct FilteringLogProcessor<P: LogProcessor> {
+    delegate: P,
+}
+
+impl<P: LogProcessor> FilteringLogProcessor<P> {
+    pub fn new(delegate: P) -> Self {
+        Self { delegate }
+    }
+}
+
+impl<P: LogProcessor> LogProcessor for FilteringLogProcessor<P> {
+    fn emit(&self, data: &mut SdkLogRecord, instrumentation: &InstrumentationScope) {
+        let should_drop = data
+            .attributes_iter()
+            .any(|(key, value)| key.as_str() == "event_id" && value == &AnyValue::Int(20));
+
+        if !should_drop {
+            self.delegate.emit(data, instrumentation);
+        }
+    }
+
+    fn force_flush(&self) -> OTelSdkResult {
+        self.delegate.force_flush()
+    }
+
+    fn shutdown_with_timeout(&self, timeout: std::time::Duration) -> OTelSdkResult {
+        self.delegate.shutdown_with_timeout(timeout)
+    }
+
+    fn shutdown(&self) -> OTelSdkResult {
+        self.delegate.shutdown()
+    }
+
+    fn set_resource(&mut self, resource: &Resource) {
+        self.delegate.set_resource(resource);
+    }
+
+    fn event_enabled(&self, level: Severity, target: &str, name: Option<&str>) -> bool {
+        self.delegate.event_enabled(level, target, name)
+    }
+}
+
 /// A log processor that enriches log records with additional attributes before
 /// delegating to an underlying processor.
 ///
-/// If this were implemented as a standalone processor in a chain (e.g.,
-/// EnrichmentProcessor -> SimpleLogProcessor), the performance benefits of the
-/// `event_enabled` check would be nullified. Here's why:
+/// If this and the downstream processor were registered separately with the
+/// provider, the performance benefits of the `event_enabled` check would be
+/// nullified. Here's why:
 ///
 /// - The `event_enabled` method is crucial for performance - it allows processors
 ///   to skip expensive operations for logs that will ultimately be filtered out

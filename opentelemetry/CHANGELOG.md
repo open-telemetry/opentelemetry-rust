@@ -2,6 +2,137 @@
 
 ## vNext
 
+- Added `TraceFlags::RANDOM`, `TraceFlags::is_random`, `TraceFlags::with_random`, and
+  `SpanContext::is_random` for the W3C Trace Context Level 2 `random-trace-id` flag
+  ([#3270](https://github.com/open-telemetry/opentelemetry-rust/issues/3270)).
+- Added `TraceFlags::sanitized()` to retain only recognized trace flags.
+- Fix panics when the context stack is full and a rejected value's destructor
+  or a tracing subscriber calls `Context::current()`.
+  ([#3753](https://github.com/open-telemetry/opentelemetry-rust/issues/3753))
+  
+- Improved performance of non-recording spans
+  ([#3814](https://github.com/open-telemetry/opentelemetry-rust/pull/3814)):
+  - `NoopSpan`, `BoxedSpan` and `SpanRef` no longer read the system clock on
+    `end()`.
+  - `BoxedSpan::end()` and `SpanRef::end()` now delegate to the wrapped span's
+    `end()` instead of calling `end_with_timestamp()`, so custom `Span::end()`
+    implementations are no longer bypassed when the span is boxed (e.g. via the
+    global tracer) or ended through a `Context` (`cx.span().end()`).
+  - `TraceState::clone()` is faster when the trace state is empty, which is the
+    common case for spans without vendor trace state.
+- **Breaking** Baggage no longer does any wire format processing. Encoding and
+  decoding is handled by `BaggagePropagator` in `opentelemetry-sdk`.
+  ([#3785](https://github.com/open-telemetry/opentelemetry-rust/pull/3785))
+  - Removed `impl Display for Baggage`. Use `BaggagePropagator` to serialize
+    baggage in W3C format. The result only contains entries that are valid
+    for propagation and respects the W3C limits, so it may differ from the
+    previous `to_string()` output:
+
+    ```diff
+    - let header = baggage.to_string();
+    + use opentelemetry::{baggage::BaggageExt, propagation::TextMapPropagator, Context};
+    + use opentelemetry_sdk::propagation::BaggagePropagator;
+    +
+    + let mut carrier = std::collections::HashMap::<String, String>::new();
+    + BaggagePropagator::new()
+    +     .inject_context(&Context::new().with_baggage(baggage), &mut carrier);
+    + let header = carrier.remove("baggage"); // `None` if nothing can be propagated
+    ```
+
+  - `Baggage` no longer limits the number or total size of its entries. The
+    W3C 64 entry and 8192 byte limits are wire format concerns and are
+    enforced by `BaggagePropagator`.
+  - `Baggage` accepts any non-empty UTF-8 string as a name, as required by
+    the specification. Restrictions are left to propagators.
+    `BaggagePropagator` skips names that are not valid W3C tokens, so an
+    insert can succeed even though the entry is never propagated. Use token
+    names (e.g. `user_id`) for entries that must cross process boundaries.
+    Skipped entries are reported through the
+    `BaggagePropagator.Inject.DroppedEntries` internal log:
+
+    ```rust
+    // Accepted by `Baggage`...
+    assert_eq!(baggage.insert("user id", "42"), Ok(None));
+    // ...but skipped by `BaggagePropagator` on inject: "user id" is not a W3C token.
+    ```
+
+  - `Baggage::insert` and `Baggage::insert_with_metadata` now return
+    `Result<Option<_>, InsertError>`. Inserting an empty name returns
+    `Err(InsertError::EmptyName)` instead of silently returning `None`.
+  - `BaggageMetadata` is now stored exactly as given without trimming. It is an
+    opaque string that must be valid, percent encoded W3C `property` syntax to
+    be properly propagated. Trim surrounding whitespace yourself if needed:
+
+    ```diff
+    - KeyValueMetadata::new("k", "v", " p=1 ") // stored as "p=1"
+    + KeyValueMetadata::new("k", "v", "p=1")   // stored verbatim
+    ```
+
+## 0.33.1
+
+Released 2026-Oct-08
+
+- Fix a panic when a value stored with `Context::with_value()` calls
+  `Context::current()` from its `Drop` implementation.
+- Expand tracing documentation on async context propagation and child spans
+  ([#828](https://github.com/open-telemetry/opentelemetry-rust/issues/828)).
+- Document the panic contract for observable metric callbacks (`Callback` and
+  `AsyncInstrumentBuilder::with_callback`).
+  ([#3640](https://github.com/open-telemetry/opentelemetry-rust/issues/3640))
+- Fix `TraceState::from_str` rejecting valid optional whitespace around list members.
+  ([#3757](https://github.com/open-telemetry/opentelemetry-rust/issues/3757))
+- **Breaking** `TraceState` now validates list-members exactly as the
+  [W3C Trace Context Level 2](https://www.w3.org/TR/trace-context-2/#tracestate-header)
+  specification requires. `from_str`, `from_key_value` and `insert` return an `Err` for:
+  - empty keys and empty or whitespace-only values (e.g. `=x`, `a=`),
+  - values containing characters outside printable ASCII (e.g. tabs), `,` or `=`;
+    repeated equals signs (e.g. `a==b`) are no longer silently removed,
+  - values with trailing spaces passed to `from_key_value` or `insert` (trailing
+    spaces in a parsed header are still treated as optional whitespace),
+  - duplicate keys, reported via the new `TraceStateError::DuplicateKey` variant.
+  `TraceState::delete` now returns `TraceState` instead of `Result<TraceState, TraceStateError>`
+  `TraceState`'s `Debug` output changed from `TraceState(None)` / `TraceState(Some([..]))` to `TraceState([])` / `TraceState([("key", "value")])`.
+  ([#3778](https://github.com/open-telemetry/opentelemetry-rust/issues/3778))
+
+## 0.33.0
+
+Released 2026-Sep-18
+
+- Fix `TraceState` accepting more than the 32 list-members the W3C trace-context
+  specification allows. `from_str`, `from_key_value` and `insert` now keep at most
+  32, dropping members from the end of the list as the specification prescribes, so
+  neither a parsed nor a locally built `tracestate` can exceed the limit.
+- **Added** experimental support for a global context event observer. A
+  `ContextObserver` can be registered via `GlobalContextObserver::set` to be
+  notified of context transitions through the `on_context_enter` and
+  `on_context_exit` callbacks. This feature is primarily intended to publish a
+  different view of the current context (the `ObserverContextView`) through
+  alternative channels that let external readers (e.g. an eBPF profiler) track
+  the current context. See the associated
+  [OTEP](https://github.com/open-telemetry/opentelemetry-specification/pull/4947).
+  Gated behind the `experimental_context_observer` feature flag.
+- `otel_info!`, `otel_warn!`, `otel_debug!`, and `otel_error!` macros now accept quoted-key fields
+  (e.g. `"otel.component.type" = "value"`) for dotted attribute names.
+- **Added** `BoundGauge<T>` and `BoundUpDownCounter<T>` types (and the
+  corresponding `Gauge::bind()` / `UpDownCounter::bind()` methods), completing
+  the experimental bound-instrument API across all sync instruments
+  (`Counter`, `UpDownCounter`, `Histogram`, `Gauge`). Gated behind the
+  `experimental_metrics_bound_instruments` feature flag.
+
+## 0.32.0
+
+Released 2026-May-08
+
+- **Added** `BoundCounter<T>` and `BoundHistogram<T>` types that cache resolved
+  aggregator references for a fixed attribute set. Created via `Counter::bind()`
+  and `Histogram::bind()`, bound instruments bypass per-call attribute lookup,
+  providing significant performance improvements for hot paths where the same
+  attributes are used repeatedly. Both types implement `Clone` so a single bound
+  state can be shared across threads or modules without re-binding. Also adds
+  the `SyncInstrument::bind()` trait method and `BoundSyncInstrument<T>` trait
+  for SDK implementors; the trait method has a no-op default so custom
+  `SyncInstrument` impls degrade gracefully without panicking. Gated behind the
+  `experimental_metrics_bound_instruments` feature flag.
 - Add `reserve` method to `opentelemetry::propagation::Injector` to hint at the number of elements that will be added to avoid multiple resize operations of the underlying data structure. Has an empty default implementation.
 - **Breaking** Removed the following public fields and methods from the `SpanBuilder` [#3227][3227]:
   - `trace_id`, `span_id`, `end_time`, `status`, `sampling_result`

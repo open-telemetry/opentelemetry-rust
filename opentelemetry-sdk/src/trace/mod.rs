@@ -7,7 +7,6 @@
 //!   current operation execution.
 //! * The [`SdkTracerProvider`] struct which configures and produces [`SdkTracer`]s.
 mod config;
-mod error;
 mod events;
 mod export;
 mod id_generator;
@@ -23,7 +22,6 @@ pub mod span_processor_with_async_runtime;
 mod tracer;
 
 pub use config::Config;
-pub use error::{TraceError, TraceResult};
 pub use events::SpanEvents;
 pub use export::{SpanData, SpanExporter};
 
@@ -38,12 +36,18 @@ pub use in_memory_exporter::{InMemorySpanExporter, InMemorySpanExporterBuilder};
 pub use id_generator::{IdGenerator, RandomIdGenerator};
 pub use links::SpanLinks;
 pub use provider::{SdkTracerProvider, TracerProviderBuilder};
-pub use sampler::{Sampler, SamplingDecision, SamplingResult, ShouldSample};
-pub use span::Span;
+#[cfg(feature = "experimental_trace_probability_sampler")]
+#[cfg_attr(docsrs, doc(cfg(feature = "experimental_trace_probability_sampler")))]
+pub use sampler::ProbabilitySampler;
+pub use sampler::{ParentBasedSampler, Sampler, SamplingDecision, SamplingResult, ShouldSample};
+pub use span::{FinishedSpan, Span};
 pub use span_limit::SpanLimits;
 pub use span_processor::{
     BatchConfig, BatchConfigBuilder, BatchSpanProcessor, BatchSpanProcessorBuilder,
-    SimpleSpanProcessor, SpanProcessor,
+    SimpleSpanProcessor, SpanProcessor, OTEL_BSP_EXPORT_TIMEOUT, OTEL_BSP_EXPORT_TIMEOUT_DEFAULT,
+    OTEL_BSP_MAX_EXPORT_BATCH_SIZE, OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
+    OTEL_BSP_MAX_QUEUE_SIZE, OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT, OTEL_BSP_SCHEDULE_DELAY,
+    OTEL_BSP_SCHEDULE_DELAY_DEFAULT,
 };
 
 pub use tracer::SdkTracer;
@@ -67,7 +71,7 @@ mod tests {
     };
     use opentelemetry::{
         baggage::BaggageExt,
-        trace::{SpanKind, Status, TraceContextExt, TraceState},
+        trace::{get_active_span, SpanKind, Status, TraceContextExt, TraceState},
     };
     use opentelemetry::{testing::trace::TestSpan, InstrumentationScope};
     use opentelemetry::{
@@ -78,6 +82,20 @@ mod tests {
         Context, KeyValue,
     };
     use std::time::Duration;
+
+    // Regression test for https://github.com/open-telemetry/opentelemetry-rust/issues/3510
+    #[test]
+    fn nested_span_in_get_active_span_with_simple_processor() {
+        let exporter = InMemorySpanExporterBuilder::new().build();
+        let provider = SdkTracerProvider::builder()
+            .with_span_processor(SimpleSpanProcessor::new(exporter.clone()))
+            .build();
+        let tracer = provider.tracer("test_tracer");
+
+        get_active_span(|_span| {
+            let _nested = tracer.span_builder("nested").start(&tracer);
+        });
+    }
 
     #[test]
     fn span_modification_via_context() {
@@ -138,7 +156,7 @@ mod tests {
             }
         }
 
-        fn on_end(&self, span: SpanData) {
+        fn on_end(&self, span: FinishedSpan<'_>) {
             // Fixed: Context::current() no longer panics from Drop
             // See https://github.com/open-telemetry/opentelemetry-rust/issues/2871
             Context::current();
@@ -149,7 +167,8 @@ mod tests {
 
             // Verify: on_start stored the baggage as an attribute
             assert!(
-                span.attributes
+                span.span_data()
+                    .attributes
                     .iter()
                     .any(|kv| kv.key.as_str() == "bag-key"),
                 "Baggage should have been stored as span attribute in on_start"
@@ -274,7 +293,10 @@ mod tests {
         assert_eq!(span.links.len(), 1);
         assert_eq!(span.links[0].span_context.trace_id(), TraceId::from(47));
         assert_eq!(span.links[0].span_context.span_id(), SpanId::from(11));
-        assert_eq!(span.span_context.trace_flags(), TraceFlags::SAMPLED);
+        assert_eq!(
+            span.span_context.trace_flags(),
+            TraceFlags::SAMPLED | TraceFlags::RANDOM
+        );
         assert!(!span.span_context.is_remote());
         assert_eq!(span.status, Status::Unset);
     }
@@ -309,7 +331,10 @@ mod tests {
         assert_eq!(span.attributes.len(), 1);
         assert_eq!(span.events.len(), 1);
         assert_eq!(span.events[0].name, "test-event");
-        assert_eq!(span.span_context.trace_flags(), TraceFlags::SAMPLED);
+        assert_eq!(
+            span.span_context.trace_flags(),
+            TraceFlags::SAMPLED | TraceFlags::RANDOM
+        );
         assert!(!span.span_context.is_remote());
         let status_expected = Status::error("cancelled");
         assert_eq!(span.status, status_expected);
@@ -346,7 +371,10 @@ mod tests {
         assert_eq!(span.attributes.len(), 1);
         assert_eq!(span.events.len(), 1);
         assert_eq!(span.events[0].name, "test-event");
-        assert_eq!(span.span_context.trace_flags(), TraceFlags::SAMPLED);
+        assert_eq!(
+            span.span_context.trace_flags(),
+            TraceFlags::SAMPLED | TraceFlags::RANDOM
+        );
         assert!(!span.span_context.is_remote());
         assert_eq!(span.status, Status::Ok);
     }

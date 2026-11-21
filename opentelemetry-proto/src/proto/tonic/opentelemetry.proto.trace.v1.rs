@@ -64,7 +64,8 @@ pub struct ScopeSpans {
     /// is recorded in. Notably, the last part of the URL path is the version number of the
     /// schema: http\[s\]://server\[:port\]/path/<version>. To learn more about Schema URL see
     /// <https://opentelemetry.io/docs/specs/otel/schemas/#schema-url>
-    /// This schema_url applies to all spans and span events in the "spans" field.
+    /// This schema_url applies to the data in the "scope" field and all spans and span
+    /// events in the "spans" field.
     #[prost(string, tag = "3")]
     pub schema_url: ::prost::alloc::string::String,
 }
@@ -164,7 +165,7 @@ pub struct Span {
     /// and `SERVER` (callee) to identify queueing latency associated with the span.
     #[prost(enumeration = "span::SpanKind", tag = "6")]
     pub kind: i32,
-    /// start_time_unix_nano is the start time of the span. On the client side, this is the time
+    /// The start time of the span. On the client side, this is the time
     /// kept by the local machine where the span execution starts. On the server side, this
     /// is the time when the server's application handler starts running.
     /// Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January 1970.
@@ -179,7 +180,7 @@ pub struct Span {
         )
     )]
     pub start_time_unix_nano: u64,
-    /// end_time_unix_nano is the end time of the span. On the client side, this is the time
+    /// The end time of the span. On the client side, this is the time
     /// kept by the local machine where the span execution ends. On the server side, this
     /// is the time when the server application handler stops running.
     /// Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January 1970.
@@ -194,7 +195,7 @@ pub struct Span {
         )
     )]
     pub end_time_unix_nano: u64,
-    /// attributes is a collection of key/value pairs. Note, global attributes
+    /// A collection of key/value pairs. Note, global attributes
     /// like server name can be set using the resource API. Examples of attributes:
     ///
     /// ```text
@@ -206,35 +207,26 @@ pub struct Span {
     ///
     /// Attribute keys MUST be unique (it is not allowed to have more than one
     /// attribute with the same key).
-    ///
-    /// The attribute values SHOULD NOT contain empty values.
-    /// The attribute values SHOULD NOT contain bytes values.
-    /// The attribute values SHOULD NOT contain array values different than array of string values, bool values, int values,
-    /// double values.
-    /// The attribute values SHOULD NOT contain kvlist values.
-    /// The behavior of software that receives attributes containing such values can be unpredictable.
-    /// These restrictions can change in a minor release.
-    /// The restrictions take origin from the OpenTelemetry specification:
-    /// <https://github.com/open-telemetry/opentelemetry-specification/blob/v1.47.0/specification/common/README.md#attribute.>
+    /// The behavior of software that receives duplicated keys can be unpredictable.
     #[prost(message, repeated, tag = "9")]
     pub attributes: ::prost::alloc::vec::Vec<super::super::common::v1::KeyValue>,
-    /// dropped_attributes_count is the number of attributes that were discarded. Attributes
+    /// The number of attributes that were discarded. Attributes
     /// can be discarded because their keys are too long or because there are too many
     /// attributes. If this value is 0, then no attributes were dropped.
     #[prost(uint32, tag = "10")]
     pub dropped_attributes_count: u32,
-    /// events is a collection of Event items.
+    /// A collection of Event items.
     #[prost(message, repeated, tag = "11")]
     pub events: ::prost::alloc::vec::Vec<span::Event>,
-    /// dropped_events_count is the number of dropped events. If the value is 0, then no
+    /// The number of dropped events. If the value is 0, then no
     /// events were dropped.
     #[prost(uint32, tag = "12")]
     pub dropped_events_count: u32,
-    /// links is a collection of Links, which are references from this span to a span
+    /// A collection of Links, which are references from this span to a span
     /// in the same or different trace.
     #[prost(message, repeated, tag = "13")]
     pub links: ::prost::alloc::vec::Vec<span::Link>,
-    /// dropped_links_count is the number of dropped links after the maximum size was
+    /// The number of dropped links after the maximum size was
     /// enforced. If this value is 0, then no links were dropped.
     #[prost(uint32, tag = "14")]
     pub dropped_links_count: u32,
@@ -253,7 +245,7 @@ pub mod span {
     #[cfg_attr(feature = "with-serde", serde(default))]
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct Event {
-        /// time_unix_nano is the time the event occurred.
+        /// The time the event occurred.
         #[prost(fixed64, tag = "1")]
         #[cfg_attr(
             feature = "with-serde",
@@ -263,28 +255,19 @@ pub mod span {
             )
         )]
         pub time_unix_nano: u64,
-        /// name of the event.
+        /// The name of the event.
         /// This field is semantically required to be set to non-empty string.
         #[prost(string, tag = "2")]
         pub name: ::prost::alloc::string::String,
-        /// attributes is a collection of attribute key/value pairs on the event.
+        /// A collection of attribute key/value pairs on the event.
         /// Attribute keys MUST be unique (it is not allowed to have more than one
         /// attribute with the same key).
-        ///
-        /// The attribute values SHOULD NOT contain empty values.
-        /// The attribute values SHOULD NOT contain bytes values.
-        /// The attribute values SHOULD NOT contain array values different than array of string values, bool values, int values,
-        /// double values.
-        /// The attribute values SHOULD NOT contain kvlist values.
-        /// The behavior of software that receives attributes containing such values can be unpredictable.
-        /// These restrictions can change in a minor release.
-        /// The restrictions take origin from the OpenTelemetry specification:
-        /// <https://github.com/open-telemetry/opentelemetry-specification/blob/v1.47.0/specification/common/README.md#attribute.>
+        /// The behavior of software that receives duplicated keys can be unpredictable.
         #[prost(message, repeated, tag = "3")]
         pub attributes: ::prost::alloc::vec::Vec<
             super::super::super::common::v1::KeyValue,
         >,
-        /// dropped_attributes_count is the number of dropped attributes. If the value is 0,
+        /// The number of dropped attributes. If the value is 0,
         /// then no attributes were dropped.
         #[prost(uint32, tag = "4")]
         pub dropped_attributes_count: u32,
@@ -323,24 +306,15 @@ pub mod span {
         /// The trace_state associated with the link.
         #[prost(string, tag = "3")]
         pub trace_state: ::prost::alloc::string::String,
-        /// attributes is a collection of attribute key/value pairs on the link.
+        /// A collection of attribute key/value pairs on the link.
         /// Attribute keys MUST be unique (it is not allowed to have more than one
         /// attribute with the same key).
-        ///
-        /// The attribute values SHOULD NOT contain empty values.
-        /// The attribute values SHOULD NOT contain bytes values.
-        /// The attribute values SHOULD NOT contain array values different than array of string values, bool values, int values,
-        /// double values.
-        /// The attribute values SHOULD NOT contain kvlist values.
-        /// The behavior of software that receives attributes containing such values can be unpredictable.
-        /// These restrictions can change in a minor release.
-        /// The restrictions take origin from the OpenTelemetry specification:
-        /// <https://github.com/open-telemetry/opentelemetry-specification/blob/v1.47.0/specification/common/README.md#attribute.>
+        /// The behavior of software that receives duplicated keys can be unpredictable.
         #[prost(message, repeated, tag = "4")]
         pub attributes: ::prost::alloc::vec::Vec<
             super::super::super::common::v1::KeyValue,
         >,
-        /// dropped_attributes_count is the number of dropped attributes. If the value is 0,
+        /// The number of dropped attributes. If the value is 0,
         /// then no attributes were dropped.
         #[prost(uint32, tag = "5")]
         pub dropped_attributes_count: u32,

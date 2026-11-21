@@ -1,37 +1,39 @@
 /*
 // Run this benchmark with:
-// cargo bench --bench span-attributes --features experimental_span_attributes
+// cargo bench --bench span-attributes
 // The benchmark results:
 // Hardware: Mac M4 Pro
 // Total Number of Cores: 14 (10 performance and 4 efficiency)
-// rustc 1.93.0 (254b59607 2026-01-19)
-// cargo 1.93.0 (083ac5135 2025-12-15)
+// rustc 1.95.0 (59807616e 2026-04-14)
+// cargo 1.95.0 (f2d3ce0bd 2026-03-21)
 //
 // Attribute counts are chosen to stay within the SDK's inline-array optimisation
-// threshold (5 attributes). With `experimental_span_attributes` enabled, span
+// threshold (5 attributes). With tracing-span attribute enrichment enabled (via
+// `OpenTelemetryTracingBridgeBuilder::with_tracing_span_attributes`), tracing-span
 // attributes are copied onto the log record, so total = log attrs + span attrs.
 //
 // Log + span benchmarks (showing incremental cost of span attributes on logging):
 // | Test                                      | Total attrs | Average time | Increment vs baseline        |
 // |-------------------------------------------|-------------|--------------|------------------------------|
-// | log_1_attr_no_span                        | 1           | 81 ns        | -                            |
-// | log_1_attr_in_span_2_attr                 | 3           | 325 ns       | +244 ns                      |
-// | log_1_attr_in_nested_spans_2plus2_attr    | 5           | 570 ns       | +489 ns (+245 ns vs 1 span)  |
+// | log_1_attr_no_span                        | 1           |  85 ns       | -                            |
+// | log_1_attr_in_span_2_attr                 | 3           | 382 ns       | +297 ns                      |
+// | log_1_attr_in_nested_spans_2plus2_attr    | 5           | 590 ns       | +505 ns (+208 ns vs 1 span)  |
 //
 // Span-only benchmarks (no log emission, kept for reference):
 // | Test                  | Average time | Increment |
 // |-----------------------|--------------|-----------|
-// | span_4_attributes     | 175 ns       | -         |
-// | span_8_attributes     | 272 ns       | +97 ns    |
-// | nested_spans_1_levels | 183 ns       | -         |
-// | nested_spans_2_levels | 385 ns       | +202 ns   |
-// | nested_spans_3_levels | 583 ns       | +198 ns   |
+// | span_4_attributes     | 194 ns       | -         |
+// | span_8_attributes     | 314 ns       | +120 ns   |
+// | nested_spans_1_levels | 194 ns       | -         |
+// | nested_spans_2_levels | 413 ns       | +219 ns   |
+// | nested_spans_3_levels | 630 ns       | +217 ns   |
 
 */
 
 use criterion::{criterion_group, criterion_main, Criterion};
 use opentelemetry::InstrumentationScope;
 use opentelemetry_appender_tracing::layer as tracing_layer;
+use opentelemetry_appender_tracing::layer::TracingSpanAttributes;
 use opentelemetry_sdk::error::OTelSdkResult;
 use opentelemetry_sdk::logs::{LogProcessor, SdkLogRecord, SdkLoggerProvider};
 use opentelemetry_sdk::Resource;
@@ -67,7 +69,9 @@ fn benchmark_span_attributes(c: &mut Criterion, num_attributes: usize) {
         .with_log_processor(NoopProcessor)
         .build();
 
-    let ot_layer = tracing_layer::OpenTelemetryTracingBridge::new(&provider);
+    let ot_layer = tracing_layer::OpenTelemetryTracingBridge::builder(&provider)
+        .with_tracing_span_attributes(TracingSpanAttributes::all())
+        .build();
     let subscriber = Registry::default().with(ot_layer);
 
     tracing::subscriber::with_default(subscriber, || {
@@ -129,7 +133,9 @@ fn benchmark_nested_spans(c: &mut Criterion, depth: usize) {
         .with_log_processor(NoopProcessor)
         .build();
 
-    let ot_layer = tracing_layer::OpenTelemetryTracingBridge::new(&provider);
+    let ot_layer = tracing_layer::OpenTelemetryTracingBridge::builder(&provider)
+        .with_tracing_span_attributes(TracingSpanAttributes::all())
+        .build();
     let subscriber = Registry::default().with(ot_layer);
 
     tracing::subscriber::with_default(subscriber, || {
@@ -246,7 +252,9 @@ fn make_provider() -> SdkLoggerProvider {
 /// 5-attribute inline-array optimisation threshold.
 fn benchmark_log_1_attr_no_span(c: &mut Criterion) {
     let provider = make_provider();
-    let ot_layer = tracing_layer::OpenTelemetryTracingBridge::new(&provider);
+    let ot_layer = tracing_layer::OpenTelemetryTracingBridge::builder(&provider)
+        .with_tracing_span_attributes(TracingSpanAttributes::all())
+        .build();
     let subscriber = Registry::default().with(ot_layer);
 
     tracing::subscriber::with_default(subscriber, || {
@@ -264,11 +272,13 @@ fn benchmark_log_1_attr_no_span(c: &mut Criterion) {
 
 /// Emit an error log with 1 attribute while inside a span that carries 2 attributes
 /// (total = 3 attrs on the log record, within the SDK's 5-attr inline threshold).
-/// With `experimental_span_attributes` the 2 span attributes are propagated onto the
+/// With tracing-span attribute enrichment enabled, the 2 span attributes are copied onto the
 /// log record, so the delta vs `log_1_attr_no_span` shows the pure span-attribute cost.
 fn benchmark_log_1_attr_in_span_2_attr(c: &mut Criterion) {
     let provider = make_provider();
-    let ot_layer = tracing_layer::OpenTelemetryTracingBridge::new(&provider);
+    let ot_layer = tracing_layer::OpenTelemetryTracingBridge::builder(&provider)
+        .with_tracing_span_attributes(TracingSpanAttributes::all())
+        .build();
     let subscriber = Registry::default().with(ot_layer);
 
     tracing::subscriber::with_default(subscriber, || {
@@ -293,7 +303,9 @@ fn benchmark_log_1_attr_in_span_2_attr(c: &mut Criterion) {
 /// two spans) vs the same total number of span attributes on a single span.
 fn benchmark_log_1_attr_in_nested_spans_2plus2_attr(c: &mut Criterion) {
     let provider = make_provider();
-    let ot_layer = tracing_layer::OpenTelemetryTracingBridge::new(&provider);
+    let ot_layer = tracing_layer::OpenTelemetryTracingBridge::builder(&provider)
+        .with_tracing_span_attributes(TracingSpanAttributes::all())
+        .build();
     let subscriber = Registry::default().with(ot_layer);
 
     tracing::subscriber::with_default(subscriber, || {

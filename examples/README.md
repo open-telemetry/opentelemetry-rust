@@ -1,78 +1,68 @@
 # Examples
 
-This directory contains some examples that should help you get start crates from `opentelemetry-rust`.
+This directory contains runnable examples for the `opentelemetry-rust` crates.
 
-## logs-basic
+## Getting Started
 
-This example uses following crates from this repo:
+If you are new to OpenTelemetry Rust, start with one of the **Getting Started**
+examples below. Each one focuses on a single signal, uses a stdout exporter,
+and can be run with `cargo run` so you can immediately see telemetry on your
+console:
 
-- opentelemetry(log)
-- opentelemetry-appender-tracing
-- opentelemetry-stdout
+| Signal  | Example                                       | What it shows                                              |
+|---------|-----------------------------------------------|------------------------------------------------------------|
+| Logs    | [logs-basic](./logs-basic/README.md)          | Bridging the `tracing` crate to OpenTelemetry              |
+| Metrics | [metrics-basic](./metrics-basic/README.md)    | Counter, UpDownCounter, Histogram, Gauge and observables   |
+| Traces  | [tracing-grpc](./tracing-grpc/README.md)      | A trace propagated across a gRPC client and server         |
 
-Check this example if you want to understand *how to instrument logs using opentelemetry*.
+For OTLP - the recommended exporter for production - see the
+[opentelemetry-otlp examples](../opentelemetry-otlp/examples), in particular
+[basic-otlp](../opentelemetry-otlp/examples/basic-otlp/README.md) (gRPC) and
+[basic-otlp-http](../opentelemetry-otlp/examples/basic-otlp-http/README.md).
 
-## logs-advanced
+## All examples
 
-This example uses following crates from this repo:
+### logs-basic
 
-- opentelemetry(log)
-- opentelemetry-appender-tracing
-- opentelemetry-stdout
+Uses: `opentelemetry`, `opentelemetry-appender-tracing`, `opentelemetry-stdout`.
 
-This builds on top of the logs-basic,
-and shows how to implement and compose `LogProcessor`s..
+The recommended starting point for OpenTelemetry **logging** in Rust. Shows how
+to bridge logs emitted via the [`tracing`](https://docs.rs/tracing) crate to
+OpenTelemetry using the `opentelemetry-appender-tracing` appender.
 
-## metrics-basic
+### logs-advanced
 
-This example uses following crates from this repo:
+Uses: `opentelemetry`, `opentelemetry-appender-tracing`, `opentelemetry-stdout`.
 
-- opentelemetry(metrics)
-- opentelemetry-stdout
+Builds on top of `logs-basic` and shows how to implement and compose custom
+`LogProcessor`s.
 
-Check this example if you want to understand *how to instrument metrics using opentelemetry*.
+### metrics-basic
 
-## metrics-advanced
+Uses: `opentelemetry`, `opentelemetry-stdout`.
 
-This example uses following crates from this repo:
+The recommended starting point for OpenTelemetry **metrics** in Rust.
+Demonstrates every instrument type (`Counter`, `UpDownCounter`, `Histogram`,
+`Gauge`, and their observable counterparts).
 
-- opentelemetry(metrics)
-- opentelemetry-stdout
+### metrics-advanced
 
-This builds on top of the metrics-basic,
-and shows advanced features in Metrics SDK like using Views.
+Uses: `opentelemetry`, `opentelemetry-stdout`.
 
-## tracing-grpc
+Builds on top of `metrics-basic` and shows advanced features of the Metrics
+SDK such as Views.
 
-This example uses following crates from this repo:
+### tracing-grpc
 
-- opentelemetry(tracing)
-- opentelemetry-stdout
+Uses: `opentelemetry`, `opentelemetry-stdout`, `tonic`, `tokio`.
 
-The application is built using `tokio`.
+The recommended starting point for OpenTelemetry **tracing** in Rust. Shows
+how to create spans and propagate/restore trace context across a gRPC
+client/server boundary so the two sides share a single trace.
 
-Check this example if you want to understand *how to create spans and
-propagate/restore context in OpenTelemetry* in a gRPC client-server application.
+### tracing-http-propagator
 
-## tracing-http-propagator
+Uses: `opentelemetry`, `opentelemetry-http`, `opentelemetry-stdout`.
 
-This example uses following crates from this repo:
-
-- opentelemetry(tracing)
-- opentelemetry-http
-- opentelemetry-stdout
-
-Check this example if you want to understand *how to create spans and
-propagate/restore context in OpenTelemetry* in an HTTP client-server
-application.
-
-## tracing-jaeger
-
-This example uses following crates from this repo:
-
-- opentelemetry(tracing)
-- opentelemetry-otlp
-
-The application is built using `tokio`.
-
-Check this example if you want to understand *how to use OTLP Exporter to export traces to Jaeger*.
+Same idea as `tracing-grpc`, but propagating trace context over HTTP headers
+instead of gRPC metadata.

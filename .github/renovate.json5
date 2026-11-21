@@ -1,0 +1,31 @@
+{
+  $schema: "https://docs.renovatebot.com/renovate-schema.json",
+  extends: [
+    "config:best-practices",
+    "helpers:pinGitHubActionDigestsToSemver",
+    ":separateMultipleMajorReleases",
+  ],
+  packageRules: [
+    {
+      groupName: "all [patches]",
+      matchCategories: ["!rust"],
+      matchUpdateTypes: ["patch", "digest"],
+      schedule: ["before 7am on Monday"],
+    },
+    {
+      matchUpdateTypes: ["major", "minor"],
+      schedule: ["before 7am on Monday"],
+    },
+    {
+      matchCategories: ["rust"],
+      schedule: ["* 0-6 1 * *"],
+    },
+    {
+      groupName: "infra [minor]",
+      matchCategories: ["ci", "docker"],
+      matchUpdateTypes: ["minor"],
+      schedule: ["before 7am on Monday"],
+    },
+  ],
+  labels: ["dependencies"],
+}

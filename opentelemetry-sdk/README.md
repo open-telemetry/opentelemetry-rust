@@ -66,6 +66,23 @@ crates, such as
 [opentelemetry-stdout](https://crates.io/crates/opentelemetry-stdout),
 [opentelemetry-otlp](https://crates.io/crates/opentelemetry-otlp) etc.
 
+### Sampling
+
+A standalone `ProbabilitySampler` (behind `experimental_trace_probability_sampler`)
+does not respect parent sampling decisions. To preserve upstream sampling decisions
+while using probability sampling for root spans, wrap it in `ParentBasedSampler`:
+
+```rust
+use opentelemetry_sdk::trace::{ParentBasedSampler, ProbabilitySampler, SdkTracerProvider};
+
+let provider = SdkTracerProvider::builder()
+    .with_sampler(ParentBasedSampler::new(ProbabilitySampler::new(0.05)))
+    .build();
+```
+
+> **Note**: Use `ParentBasedSampler` instead of the legacy `Sampler::ParentBased`
+> variant, which forwards only sampling decisions and drops modified `TraceState`.
+
 ### Related crates
 
 Unless you are a plugin (custom Samplers, Processors etc.) author, you will almost always need to use additional
@@ -82,9 +99,6 @@ OpenTelemetry Exporter is almost always required. OpenTelemetry provides the fol
   telemetry backends like [Jaeger](https://www.jaegertracing.io/),
   [Prometheus](https://prometheus.io/docs/prometheus/latest/feature_flags/#otlp-receiver)
   or [vendor specific endpoints](https://opentelemetry.io/ecosystem/vendors/).
-- **[opentelemetry-zipkin](https://crates.io/crates/opentelemetry-zipkin):**
-  Exports telemetry (traces only) to Zipkin following [OpenTelemetry to Zipkin
-  specification](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/sdk_exporters/zipkin.md).
 - **[opentelemetry-prometheus](https://crates.io/crates/opentelemetry-prometheus):**
   Exports telemetry (metrics only) to Prometheus following [OpenTelemetry to
   Prometheus
@@ -107,7 +121,7 @@ You can find the release notes (changelog) [here](https://github.com/open-teleme
 ## Supported Rust Versions
 
 OpenTelemetry is built against the latest stable release. The minimum supported
-version is 1.75.0. The current OpenTelemetry version is not guaranteed to build
+version is 1.75.0. The current OpenTelemetry version is NOT guaranteed to build
 on Rust versions earlier than the minimum supported version.
 
 The current stable Rust compiler and the three most recent minor versions

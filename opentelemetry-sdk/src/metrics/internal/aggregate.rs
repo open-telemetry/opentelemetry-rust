@@ -1,4 +1,5 @@
 use std::{
+    collections::hash_map::RandomState,
     marker,
     mem::replace,
     ops::DerefMut,
@@ -12,12 +13,45 @@ use opentelemetry::KeyValue;
 
 use super::{
     exponential_histogram::ExpoHistogram, histogram::Histogram, last_value::LastValue,
-    precomputed_sum::PrecomputedSum, sum::Sum, Number,
+    precomputed_sum::PrecomputedSum, sum::Sum, AttributeBuildHasher, Number, SharedFactory,
 };
 
 /// Receives measurements to be aggregated.
 pub(crate) trait Measure<T>: Send + Sync + 'static {
     fn call(&self, measurement: T, attrs: &[KeyValue]);
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    fn bind(&self, attrs: &[KeyValue]) -> Box<dyn BoundMeasure<T>>;
+}
+
+/// A pre-bound measurement handle that bypasses attribute lookup.
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+pub(crate) trait BoundMeasure<T>: Send + Sync + 'static {
+    fn call(&self, measurement: T);
+}
+
+/// A bound handle that drops every measurement silently. Used when
+/// `ValueMap::bind` returns `None` because the trackers `RwLock` is poisoned —
+/// an extremely rare degenerate state in which the SDK can no longer aggregate
+/// reliably. Returning a noop here mirrors `measure()`'s own poison handling
+/// (silent drop) rather than panicking on the user's hot path.
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+pub(crate) struct NoopBoundMeasure<T> {
+    _marker: marker::PhantomData<T>,
+}
+
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+impl<T> NoopBoundMeasure<T> {
+    pub(crate) fn new() -> Self {
+        Self {
+            _marker: marker::PhantomData,
+        }
+    }
+}
+
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+impl<T: Send + Sync + 'static> BoundMeasure<T> for NoopBoundMeasure<T> {
+    fn call(&self, _measurement: T) {}
 }
 
 /// Stores the aggregate of measurements into the aggregation and returns the number
@@ -89,7 +123,7 @@ impl Default for AggregateTimeInitiator {
     }
 }
 
-type Filter = Arc<dyn Fn(&KeyValue) -> bool + Send + Sync>;
+pub(crate) type Filter = Arc<dyn Fn(&KeyValue) -> bool + Send + Sync>;
 
 /// Applies filter on provided attribute set
 /// No-op, if filter is not set
@@ -115,7 +149,7 @@ impl AttributeSetFilter {
 }
 
 /// Builds aggregate functions
-pub(crate) struct AggregateBuilder<T> {
+pub(crate) struct AggregateBuilder<T, S = RandomState> {
     /// The temporality used for the returned aggregate functions.
     temporality: Temporality,
 
@@ -126,19 +160,41 @@ pub(crate) struct AggregateBuilder<T> {
     /// Cardinality limit for the metric stream
     cardinality_limit: usize,
 
+    /// Creates the hasher used to look up attribute sets in each aggregation's
+    /// value map
+    make_hasher: SharedFactory<S>,
+
     _marker: marker::PhantomData<T>,
 }
 
+#[cfg(test)]
 impl<T: Number> AggregateBuilder<T> {
     pub(crate) fn new(
         temporality: Temporality,
         filter: Option<Filter>,
         cardinality_limit: usize,
     ) -> Self {
+        Self::with_hasher(
+            temporality,
+            filter,
+            cardinality_limit,
+            Arc::new(RandomState::new),
+        )
+    }
+}
+
+impl<T: Number, S: AttributeBuildHasher> AggregateBuilder<T, S> {
+    pub(crate) fn with_hasher(
+        temporality: Temporality,
+        filter: Option<Filter>,
+        cardinality_limit: usize,
+        make_hasher: SharedFactory<S>,
+    ) -> Self {
         AggregateBuilder {
             temporality,
             filter: AttributeSetFilter::new(filter),
             cardinality_limit,
+            make_hasher,
             _marker: marker::PhantomData,
         }
     }
@@ -149,6 +205,7 @@ impl<T: Number> AggregateBuilder<T> {
             overwrite_temporality.unwrap_or(self.temporality),
             self.filter.clone(),
             self.cardinality_limit,
+            self.make_hasher.clone(),
         )
         .into()
     }
@@ -160,6 +217,7 @@ impl<T: Number> AggregateBuilder<T> {
             self.filter.clone(),
             monotonic,
             self.cardinality_limit,
+            self.make_hasher.clone(),
         )
         .into()
     }
@@ -171,6 +229,7 @@ impl<T: Number> AggregateBuilder<T> {
             self.filter.clone(),
             monotonic,
             self.cardinality_limit,
+            self.make_hasher.clone(),
         )
         .into()
     }
@@ -189,6 +248,7 @@ impl<T: Number> AggregateBuilder<T> {
             record_min_max,
             record_sum,
             self.cardinality_limit,
+            self.make_hasher.clone(),
         )
         .into()
     }
@@ -209,6 +269,7 @@ impl<T: Number> AggregateBuilder<T> {
             record_min_max,
             record_sum,
             self.cardinality_limit,
+            self.make_hasher.clone(),
         )
         .into()
     }
