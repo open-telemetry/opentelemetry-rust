@@ -22,6 +22,7 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
+arc-swap = { workspace = true, optional = true }
 futures-core = { workspace = true, optional = true }
 futures-sink = { workspace = true, optional = true }
 pin-project-lite = { workspace = true, optional = true }
@@ -34,8 +35,8 @@ js-sys = "0.3.63"
 [features]
 default = ["trace", "metrics", "logs", "internal-logs", "futures"]
 futures = ["futures-core", "futures-sink", "pin-project-lite"]
-trace = ["futures", "thiserror"]
-metrics = []
+trace = ["futures", "thiserror", "arc-swap"]
+metrics = ["arc-swap"]
 testing = ["trace"]
 logs = []
 internal-logs = ["tracing"]
@@ -68,6 +69,11 @@ harness = false
 name = "context_attach"
 harness = false
 required-features = ["tracing"]
+
+[[bench]]
+name = "global_trace"
+harness = false
+required-features = ["trace"]
 
 [[bench]]
 name = "context_suppression"

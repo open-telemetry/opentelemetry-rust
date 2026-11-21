@@ -1,10 +1,12 @@
 use crate::trace::{noop::NoopTracerProvider, SpanContext, Status};
-use crate::{otel_error, otel_info, InstrumentationScope};
+use crate::{otel_info, InstrumentationScope};
 use crate::{trace, trace::TracerProvider, Context, KeyValue};
 use std::borrow::Cow;
 use std::fmt;
-use std::sync::{Arc, OnceLock, RwLock};
+use std::sync::Arc;
 use std::time::SystemTime;
+
+use arc_swap::ArcSwapOption;
 
 /// Allows a specific [`crate::trace::Span`] to be used generically by [`BoxedSpan`]
 /// instances by mirroring the interface and boxing the return types.
@@ -367,12 +369,29 @@ impl trace::TracerProvider for GlobalTracerProvider {
 }
 
 /// The global `Tracer` provider singleton.
-static GLOBAL_TRACER_PROVIDER: OnceLock<RwLock<GlobalTracerProvider>> = OnceLock::new();
+///
+/// `None` means the provider has neither been set through
+/// [`set_tracer_provider`] nor lazily initialized with the no-op provider
+/// yet
+static GLOBAL_TRACER_PROVIDER: ArcSwapOption<GlobalTracerProvider> = ArcSwapOption::const_empty();
 
 #[inline]
-fn global_tracer_provider() -> &'static RwLock<GlobalTracerProvider> {
-    GLOBAL_TRACER_PROVIDER
-        .get_or_init(|| RwLock::new(GlobalTracerProvider::new(NoopTracerProvider::new())))
+fn with_tracer_provider<R>(f: impl FnOnce(&GlobalTracerProvider) -> R) -> R {
+    let current = GLOBAL_TRACER_PROVIDER.load();
+    if let Some(provider) = current.as_deref() {
+        return f(provider);
+    }
+    drop(current);
+
+    // The slot is not yet initialized: lazily install the no-op provider so
+    // subsequent reads take the fast path. If `set_tracer_provider` races us
+    // and wins, `compare_and_swap` leaves its provider in place and returns it.
+    let noop = Arc::new(GlobalTracerProvider::new(NoopTracerProvider::new()));
+    let previous = GLOBAL_TRACER_PROVIDER.compare_and_swap(&None::<Arc<_>>, Some(noop.clone()));
+    match previous.as_deref() {
+        Some(winner) => f(winner),
+        None => f(&noop),
+    }
 }
 
 /// Returns an instance of the currently configured global [`TracerProvider`] through
@@ -381,14 +400,7 @@ fn global_tracer_provider() -> &'static RwLock<GlobalTracerProvider> {
 /// [`TracerProvider`]: crate::trace::TracerProvider
 /// [`GlobalTracerProvider`]: crate::global::GlobalTracerProvider
 pub fn tracer_provider() -> GlobalTracerProvider {
-    // Try to get the global tracer provider. If the RwLock is poisoned, we'll log an error and return a NoopTracerProvider.
-    let global_provider = global_tracer_provider().read();
-    if let Ok(provider) = global_provider {
-        provider.clone()
-    } else {
-        otel_error!(name: "TracerProvider.GlobalGetFailed", message = "Getting global tracer provider failed. Traces created using global::tracer() or global::tracer_with_scope() will not function. Report this issue in OpenTelemetry repo.");
-        GlobalTracerProvider::new(NoopTracerProvider::new())
-    }
+    with_tracer_provider(GlobalTracerProvider::clone)
 }
 
 /// Creates a named instance of [`Tracer`] via the configured [`GlobalTracerProvider`].
@@ -399,7 +411,8 @@ pub fn tracer_provider() -> GlobalTracerProvider {
 ///
 /// [`Tracer`]: crate::trace::Tracer
 pub fn tracer(name: impl Into<Cow<'static, str>>) -> BoxedTracer {
-    tracer_provider().tracer(name.into())
+    let name = name.into();
+    with_tracer_provider(|provider| provider.tracer(name))
 }
 
 /// Creates a [`Tracer`] with the given instrumentation scope
@@ -426,7 +439,7 @@ pub fn tracer(name: impl Into<Cow<'static, str>>) -> BoxedTracer {
 ///
 /// [`Tracer`]: crate::trace::Tracer
 pub fn tracer_with_scope(scope: InstrumentationScope) -> BoxedTracer {
-    tracer_provider().tracer_with_scope(scope)
+    with_tracer_provider(|provider| provider.tracer_with_scope(scope))
 }
 
 /// Sets the given [`TracerProvider`] instance as the current global provider.
@@ -439,13 +452,8 @@ where
     T: trace::Tracer<Span = S> + Send + Sync + 'static,
     P: trace::TracerProvider<Tracer = T> + Send + Sync + 'static,
 {
-    let mut global_provider = global_tracer_provider().write();
-    if let Ok(ref mut provider) = global_provider {
-        **provider = GlobalTracerProvider::new(new_provider);
-        otel_info!(name: "TracerProvider.GlobalSet", message = "Global tracer provider is set. Traces can now be created using global::tracer() or global::tracer_with_scope().");
-    } else {
-        otel_error!(name: "TracerProvider.GlobalSetFailed", message = "Setting global tracer provider failed. Traces created using global::tracer() or global::tracer_with_scope() will not function. Report this issue in OpenTelemetry repo.");
-    }
+    GLOBAL_TRACER_PROVIDER.store(Some(Arc::new(GlobalTracerProvider::new(new_provider))));
+    otel_info!(name: "TracerProvider.GlobalSet", message = "Global tracer provider is set. Traces can now be created using global::tracer() or global::tracer_with_scope().");
 }
 
 #[cfg(test)]

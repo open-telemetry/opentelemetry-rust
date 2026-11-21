@@ -18,6 +18,7 @@ resolver = "2"
 debug = "line-tables-only"
 
 [workspace.dependencies]
+arc-swap = "1"
 async-trait = "0.1"
 bytes = "1"
 criterion = "0.5"

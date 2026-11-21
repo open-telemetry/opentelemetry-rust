@@ -1,16 +1,30 @@
 use crate::metrics::{self, Meter, MeterProvider};
-use crate::{otel_error, otel_info, InstrumentationScope};
-use std::sync::{Arc, OnceLock, RwLock};
+use crate::{otel_info, InstrumentationScope};
+use std::sync::Arc;
+
+use arc_swap::ArcSwapOption;
 
 type GlobalMeterProvider = Arc<dyn MeterProvider + Send + Sync>;
 
-/// The global `MeterProvider` singleton.
-static GLOBAL_METER_PROVIDER: OnceLock<RwLock<GlobalMeterProvider>> = OnceLock::new();
+/// The global `MeterProvider` singleton, lazily initialized with a no-op provider.
+static GLOBAL_METER_PROVIDER: ArcSwapOption<GlobalMeterProvider> = ArcSwapOption::const_empty();
 
 #[inline]
-fn global_meter_provider() -> &'static RwLock<GlobalMeterProvider> {
-    GLOBAL_METER_PROVIDER
-        .get_or_init(|| RwLock::new(Arc::new(crate::metrics::noop::NoopMeterProvider::new())))
+fn with_meter_provider<R>(f: impl FnOnce(&GlobalMeterProvider) -> R) -> R {
+    let current = GLOBAL_METER_PROVIDER.load();
+    if let Some(provider) = current.as_deref() {
+        return f(provider);
+    }
+    drop(current);
+
+    // Lazily install the no-op provider without overwriting a concurrent set.
+    let noop =
+        Arc::new(Arc::new(crate::metrics::noop::NoopMeterProvider::new()) as GlobalMeterProvider);
+    let previous = GLOBAL_METER_PROVIDER.compare_and_swap(&None::<Arc<_>>, Some(noop.clone()));
+    match previous.as_deref() {
+        Some(winner) => f(winner),
+        None => f(&noop),
+    }
 }
 
 /// Sets the given [`MeterProvider`] instance as the current global meter
@@ -22,26 +36,15 @@ pub fn set_meter_provider<P>(new_provider: P)
 where
     P: metrics::MeterProvider + Send + Sync + 'static,
 {
-    // Try to set the global meter provider. If the RwLock is poisoned, we'll log an error.
-    let mut global_provider = global_meter_provider().write();
-    if let Ok(ref mut provider) = global_provider {
-        **provider = Arc::new(new_provider);
-        otel_info!(name: "MeterProvider.GlobalSet", message = "Global meter provider is set. Meters can now be created using global::meter() or global::meter_with_scope().");
-    } else {
-        otel_error!(name: "MeterProvider.GlobalSetFailed", message = "Setting global meter provider failed. Meters created using global::meter() or global::meter_with_scope() will not function. Report this issue in OpenTelemetry repo.");
-    }
+    GLOBAL_METER_PROVIDER.store(Some(
+        Arc::new(Arc::new(new_provider) as GlobalMeterProvider),
+    ));
+    otel_info!(name: "MeterProvider.GlobalSet", message = "Global meter provider is set. Meters can now be created using global::meter() or global::meter_with_scope().");
 }
 
 /// Returns an instance of the currently configured global [`MeterProvider`].
 pub fn meter_provider() -> GlobalMeterProvider {
-    // Try to get the global meter provider. If the RwLock is poisoned, we'll log an error and return a NoopMeterProvider.
-    let global_provider = global_meter_provider().read();
-    if let Ok(provider) = global_provider {
-        provider.clone()
-    } else {
-        otel_error!(name: "MeterProvider.GlobalGetFailed", message = "Getting global meter provider failed. Meters created using global::meter() or global::meter_with_scope() will not function. Report this issue in OpenTelemetry repo.");
-        Arc::new(crate::metrics::noop::NoopMeterProvider::new())
-    }
+    with_meter_provider(Arc::clone)
 }
 
 /// Creates a named [`Meter`] via the currently configured global [`MeterProvider`].
@@ -51,7 +54,7 @@ pub fn meter_provider() -> GlobalMeterProvider {
 /// **NOTE:** Calls to [`meter()`] return a [`Meter`] backed by the global [`MeterProvider`] configured during the method invocation.
 /// If the global [`MeterProvider`] is changed after getting [`Meter`] instances from these calls, the [`Meter`] instances returned will not reflect the change.
 pub fn meter(name: &'static str) -> Meter {
-    meter_provider().meter(name)
+    with_meter_provider(|provider| provider.meter(name))
 }
 
 /// Creates a [`Meter`] with the given instrumentation scope.
@@ -78,5 +81,56 @@ pub fn meter(name: &'static str) -> Meter {
 /// let meter = meter_with_scope(scope);
 /// ```
 pub fn meter_with_scope(scope: InstrumentationScope) -> Meter {
-    meter_provider().meter_with_scope(scope)
+    with_meter_provider(|provider| provider.meter_with_scope(scope))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Mutex;
+
+    struct RecordingMeterProvider {
+        scopes: Arc<Mutex<Vec<InstrumentationScope>>>,
+    }
+
+    impl MeterProvider for RecordingMeterProvider {
+        fn meter_with_scope(&self, scope: InstrumentationScope) -> Meter {
+            let current = GLOBAL_METER_PROVIDER.load();
+            let current = current.as_ref().unwrap();
+            assert_eq!(Arc::strong_count(current), 1);
+            assert_eq!(Arc::strong_count(current.as_ref()), 1);
+            self.scopes.lock().unwrap().push(scope.clone());
+            metrics::NoopMeterProvider::new().meter_with_scope(scope)
+        }
+    }
+
+    #[test]
+    fn test_global_meter_provider() {
+        meter("noop").u64_counter("counter").build().add(1, &[]);
+
+        let scopes = Arc::new(Mutex::new(Vec::new()));
+        set_meter_provider(RecordingMeterProvider {
+            scopes: scopes.clone(),
+        });
+        meter("named");
+        let scope = InstrumentationScope::builder("scoped")
+            .with_version("1.0")
+            .build();
+        meter_with_scope(scope.clone());
+        assert_eq!(
+            *scopes.lock().unwrap(),
+            vec![InstrumentationScope::builder("named").build(), scope]
+        );
+
+        let owned = meter_provider();
+        with_meter_provider(|provider| {
+            assert!(Arc::ptr_eq(provider, &owned));
+            assert_eq!(Arc::strong_count(provider), 2);
+            set_meter_provider(metrics::NoopMeterProvider::new());
+        });
+        assert_eq!(Arc::strong_count(&owned), 1);
+        owned.meter("retained");
+        assert_eq!(scopes.lock().unwrap().last().unwrap().name(), "retained");
+        with_meter_provider(|provider| assert!(!Arc::ptr_eq(provider, &owned)));
+    }
 }
