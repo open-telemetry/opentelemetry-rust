@@ -1,7 +1,7 @@
 use std::{
     env, fmt, mem,
     sync::{Arc, Mutex, Weak},
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use futures_channel::{mpsc, oneshot};
@@ -226,7 +226,13 @@ struct PeriodicReaderInner<E: PushMetricExporter> {
 enum Message {
     Export,
     Flush(oneshot::Sender<OTelSdkResult>),
-    Shutdown(oneshot::Sender<OTelSdkResult>),
+    Shutdown {
+        /// Total time the caller allotted for shutdown.
+        timeout: Duration,
+        /// When shutdown was requested, to compute the remaining budget.
+        requested_at: Instant,
+        response: oneshot::Sender<OTelSdkResult>,
+    },
 }
 
 enum ProducerOrWorker<E: PushMetricExporter> {
@@ -301,15 +307,20 @@ impl<E: PushMetricExporter, RT: Runtime> PeriodicReaderWorker<E, RT> {
                     );
                 }
             }
-            Message::Shutdown(ch) => {
+            Message::Shutdown {
+                timeout,
+                requested_at,
+                response,
+            } => {
                 otel_debug!(
                     name: "PeriodicReader.ShutdownCalled",
                     message = "Shutdown message received",
                 );
                 let res = self.collect_and_export().await;
-                let _ = self.reader.exporter.shutdown();
+                let remaining = timeout.saturating_sub(requested_at.elapsed());
+                let _ = self.reader.exporter.shutdown_with_timeout(remaining);
                 if let Err(send_error) =
-                    ch.send(res.map_err(|e| OTelSdkError::InternalFailure(e.to_string())))
+                    response.send(res.map_err(|e| OTelSdkError::InternalFailure(e.to_string())))
                 {
                     otel_debug!(
                         name: "PeriodicReader.Shutdown.SendResultError",
@@ -399,7 +410,7 @@ impl<E: PushMetricExporter> MetricReader for PeriodicReader<E> {
             .and_then(|res| res)
     }
 
-    fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
+    fn shutdown_with_timeout(&self, timeout: Duration) -> OTelSdkResult {
         let mut inner = self
             .inner
             .lock()
@@ -411,7 +422,11 @@ impl<E: PushMetricExporter> MetricReader for PeriodicReader<E> {
         let (sender, receiver) = oneshot::channel();
         inner
             .message_sender
-            .try_send(Message::Shutdown(sender))
+            .try_send(Message::Shutdown {
+                timeout,
+                requested_at: Instant::now(),
+                response: sender,
+            })
             .map_err(|e| OTelSdkError::InternalFailure(e.to_string()))?;
         drop(inner); // don't hold lock when blocking on future
 
