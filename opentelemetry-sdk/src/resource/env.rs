@@ -146,9 +146,11 @@ mod tests {
             },
         );
 
-        let detector = EnvResourceDetector::new();
-        let resource = detector.detect();
-        assert!(resource.is_empty());
+        temp_env::with_var(OTEL_RESOURCE_ATTRIBUTES, None::<&str>, || {
+            let detector = EnvResourceDetector::new();
+            let resource = detector.detect();
+            assert!(resource.is_empty());
+        });
     }
 
     #[test]
