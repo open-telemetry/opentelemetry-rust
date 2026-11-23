@@ -174,9 +174,10 @@ mod tests {
     use crate::growable_array::{
         GrowableArray, DEFAULT_INITIAL_OVERFLOW_CAPACITY, DEFAULT_MAX_INLINE_CAPACITY,
     };
-    use opentelemetry::logs::AnyValue;
-    use opentelemetry::Key;
+    #[cfg(feature = "logs")]
+    use opentelemetry::{logs::AnyValue, Key};
 
+    #[cfg(feature = "logs")]
     type KeyValuePair = Option<(Key, AnyValue)>;
 
     #[test]
@@ -228,6 +229,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "logs")]
     fn test_key_value_pair_storage_growable_array() {
         let mut collection = GrowableArray::<KeyValuePair>::new();
 
@@ -261,6 +263,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "logs")]
     fn test_empty_attributes() {
         let collection = GrowableArray::<KeyValuePair>::new();
         assert_eq!(collection.len(), 0);
