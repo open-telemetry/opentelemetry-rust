@@ -2,6 +2,9 @@
 
 ## vNext
 
+- Fixed `jaeger_remote` `LeakyBucket` rate limiter discarding sub-second
+  elapsed intervals, double-bursting after idle periods, and accepting
+  negative or non-finite parameters.
 - Improved metrics measurement performance by speeding up attribute set
   lookups (faster `KeyValue` equality and boxed attribute keys).
   ([#3787](https://github.com/open-telemetry/opentelemetry-rust/pull/3787))
