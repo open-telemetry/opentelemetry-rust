@@ -2,6 +2,9 @@
 
 ## vNext
 
+- Fixed `ResourceBuilder::with_schema_url` inverting attribute merge
+  precedence against prior builder attributes and fixed `Resource::from_detectors`
+  dropping schema URLs returned by detectors.
 - Improved metrics measurement performance by speeding up attribute set
   lookups (faster `KeyValue` equality and boxed attribute keys).
   ([#3787](https://github.com/open-telemetry/opentelemetry-rust/pull/3787))

@@ -142,13 +142,7 @@ impl Resource {
         let mut resource = Resource::empty();
         for detector in detectors {
             let detected_res = detector.detect();
-            // This call ensures that if the Arc is not uniquely owned,
-            // the data is cloned before modification, preserving safety.
-            // If the Arc is uniquely owned, it simply returns a mutable reference to the data.
-            let inner = Arc::make_mut(&mut resource.inner);
-            for (key, value) in detected_res.into_iter() {
-                inner.attrs.insert(Key::new(key.clone()), value.clone());
-            }
+            resource = resource.merge(&detected_res);
         }
 
         resource
@@ -319,7 +313,9 @@ impl ResourceBuilder {
         KV: IntoIterator<Item = KeyValue>,
         S: Into<Cow<'static, str>>,
     {
-        self.resource = Resource::from_schema_url(attributes, schema_url).merge(&self.resource);
+        self.resource = self
+            .resource
+            .merge(&Resource::from_schema_url(attributes, schema_url));
         self
     }
 
@@ -553,5 +549,94 @@ mod tests {
                 )
             },
         )
+    }
+
+    #[test]
+    fn builder_with_schema_url_overrides_existing_attributes() {
+        let resource = Resource::builder_empty()
+            .with_attribute(KeyValue::new("k", "old"))
+            .with_schema_url([KeyValue::new("k", "new")], "https://schema/a")
+            .build();
+        assert_eq!(resource.get(&Key::new("k")), Some(Value::from("new")));
+        assert_eq!(resource.schema_url(), Some("https://schema/a"));
+
+        temp_env::with_vars(
+            [
+                ("OTEL_SERVICE_NAME", None::<&str>),
+                ("OTEL_RESOURCE_ATTRIBUTES", None::<&str>),
+            ],
+            || {
+                let with_defaults = Resource::builder()
+                    .with_schema_url(
+                        [KeyValue::new(SERVICE_NAME, "my-service")],
+                        "https://schema/a",
+                    )
+                    .build();
+                assert_eq!(
+                    with_defaults.get(&Key::new(SERVICE_NAME)),
+                    Some(Value::from("my-service"))
+                );
+                assert_eq!(with_defaults.schema_url(), Some("https://schema/a"));
+            },
+        );
+    }
+
+    #[test]
+    fn from_detectors_merges_detector_schema_urls() {
+        struct StaticDetector(Resource);
+        impl ResourceDetector for StaticDetector {
+            fn detect(&self) -> Resource {
+                self.0.clone()
+            }
+        }
+
+        let single = Resource::builder_empty()
+            .with_detector(Box::new(StaticDetector(Resource::from_schema_url(
+                [KeyValue::new("a", "1")],
+                "https://schema/detector-a",
+            ))))
+            .build();
+        assert_eq!(single.get(&Key::new("a")), Some(Value::from("1")));
+        assert_eq!(single.schema_url(), Some("https://schema/detector-a"));
+
+        let same_schema = Resource::builder_empty()
+            .with_detectors(&[
+                Box::new(StaticDetector(Resource::from_schema_url(
+                    [KeyValue::new("shared", "first")],
+                    "https://schema/detector-a",
+                ))),
+                Box::new(StaticDetector(Resource::from_schema_url(
+                    [KeyValue::new("shared", "second")],
+                    "https://schema/detector-a",
+                ))),
+            ])
+            .build();
+        assert_eq!(
+            same_schema.get(&Key::new("shared")),
+            Some(Value::from("second"))
+        );
+        assert_eq!(same_schema.schema_url(), Some("https://schema/detector-a"));
+
+        let conflicting_schema = Resource::builder_empty()
+            .with_detectors(&[
+                Box::new(StaticDetector(Resource::from_schema_url(
+                    [KeyValue::new("a", "1")],
+                    "https://schema/detector-a",
+                ))),
+                Box::new(StaticDetector(Resource::from_schema_url(
+                    [KeyValue::new("b", "2")],
+                    "https://schema/detector-b",
+                ))),
+            ])
+            .build();
+        assert_eq!(
+            conflicting_schema.get(&Key::new("a")),
+            Some(Value::from("1"))
+        );
+        assert_eq!(
+            conflicting_schema.get(&Key::new("b")),
+            Some(Value::from("2"))
+        );
+        assert_eq!(conflicting_schema.schema_url(), None);
     }
 }
