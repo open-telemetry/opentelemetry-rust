@@ -16,12 +16,16 @@ pub struct SdkLogger {
     scope: InstrumentationScope,
     provider: SdkLoggerProvider,
 
+    // set when the provider is shutdown or disabled, in which case every record
+    // is dropped before touching the context, the clock or the counter below
+    is_noop: bool,
+
     // Bound is not strictly needed (no attributes), but the semconv is still
     // `development` so the metric must be feature-gated; reuse the same
     // `experimental_metrics_bound_instruments` flag as the other SDK
-    // self-observability metrics for consistency.
+    // self-observability metrics for consistency. `None` for a no-op logger.
     #[cfg(feature = "experimental_metrics_bound_instruments")]
-    log_created_counter: opentelemetry::metrics::BoundCounter<u64>,
+    log_created_counter: Option<opentelemetry::metrics::BoundCounter<u64>>,
 }
 
 impl SdkLogger {
@@ -36,8 +40,20 @@ impl SdkLogger {
         SdkLogger {
             scope,
             provider,
+            is_noop: false,
             #[cfg(feature = "experimental_metrics_bound_instruments")]
-            log_created_counter,
+            log_created_counter: Some(log_created_counter),
+        }
+    }
+
+    /// Create a logger that drops every record.
+    pub(crate) fn new_noop(scope: InstrumentationScope, provider: SdkLoggerProvider) -> Self {
+        SdkLogger {
+            scope,
+            provider,
+            is_noop: true,
+            #[cfg(feature = "experimental_metrics_bound_instruments")]
+            log_created_counter: None,
         }
     }
 }
@@ -51,6 +67,10 @@ impl opentelemetry::logs::Logger for SdkLogger {
 
     /// Emit a `LogRecord`.
     fn emit(&self, mut record: Self::LogRecord) {
+        if self.is_noop {
+            return;
+        }
+
         // Records emitted while telemetry is suppressed are the SDK's own
         // internal-operation logs (suppressed to prevent feedback loops). They
         // are not application intake, so `otel.sdk.log.created` intentionally
@@ -64,7 +84,9 @@ impl opentelemetry::logs::Logger for SdkLogger {
         // this metric is the top of the delivery funnel: records dropped by
         // downstream processing show up as a gap against downstream metrics.
         #[cfg(feature = "experimental_metrics_bound_instruments")]
-        self.log_created_counter.add(1);
+        if let Some(log_created_counter) = &self.log_created_counter {
+            log_created_counter.add(1);
+        }
 
         let provider = &self.provider;
         let processors = provider.log_processors();
@@ -89,13 +111,16 @@ impl opentelemetry::logs::Logger for SdkLogger {
 
     #[inline]
     fn event_enabled(&self, level: Severity, target: &str, name: Option<&str>) -> bool {
-        if Context::is_current_telemetry_suppressed() {
+        if self.is_noop {
             return false;
         }
-        // Returns false if there are no log processors.
+        let processors = self.provider.log_processors();
+        // Early return if there are no processors
+        if processors.is_empty() || Context::is_current_telemetry_suppressed() {
+            return false;
+        }
         // Returns true if at least one processor returns true.
-        self.provider
-            .log_processors()
+        processors
             .iter()
             .any(|processor| processor.event_enabled(level, target, name))
     }
@@ -125,6 +150,43 @@ mod self_obs {
             }
         }
         total
+    }
+
+    /// Verifies a logger from an SDK disabled through `OTEL_SDK_DISABLED` reports
+    /// nothing through an *enabled* global meter. The exporter being empty is not
+    /// enough to catch this: a disabled logger has no processors either way, but
+    /// `emit` used to count intake before discovering that.
+    ///
+    /// `#[ignore]`d because it calls `global::set_meter_provider()`, which
+    /// mutates process-wide state; CI runs it in isolation via `test.sh`.
+    #[test]
+    #[ignore]
+    fn log_created_not_counted_when_sdk_disabled() {
+        // built before the env var is set, so the meter provider itself stays enabled
+        let metric_exporter = InMemoryMetricExporter::default();
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(metric_exporter.clone())
+            .build();
+        opentelemetry::global::set_meter_provider(meter_provider.clone());
+
+        temp_env::with_var("OTEL_SDK_DISABLED", Some("true"), || {
+            let logger_provider = SdkLoggerProvider::builder().build();
+            let logger = logger_provider.logger("disabled");
+
+            for _ in 0..10 {
+                logger.emit(logger.create_log_record());
+            }
+        });
+
+        meter_provider.force_flush().unwrap();
+
+        assert_eq!(
+            sum_log_created(&metric_exporter),
+            0,
+            "a disabled SDK must not report log intake through an enabled meter"
+        );
+
+        meter_provider.shutdown().unwrap();
     }
 
     /// Verifies `otel.sdk.log.created` counts every record submitted to the SDK
