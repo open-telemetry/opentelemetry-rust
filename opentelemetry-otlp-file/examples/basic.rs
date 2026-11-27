@@ -3,13 +3,13 @@
 //! Write every signal to stdout:
 //!
 //! ```shell
-//! cargo run --example basic
+//! cargo run -p opentelemetry-otlp-file --example basic
 //! ```
 //!
 //! Or append each signal to its own file in a directory:
 //!
 //! ```shell
-//! cargo run --example basic -- /tmp/otel
+//! cargo run -p opentelemetry-otlp-file --example basic -- /tmp/otel
 //! ```
 //!
 //! This creates `traces.jsonl`, `metrics.jsonl` and `logs.jsonl` in `/tmp/otel`.

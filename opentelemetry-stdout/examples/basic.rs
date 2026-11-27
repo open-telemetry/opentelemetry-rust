@@ -1,4 +1,4 @@
-//! run with `$ cargo run --example basic
+//! Run with `cargo run -p opentelemetry-stdout --example basic`.
 
 use once_cell::sync::Lazy;
 use opentelemetry::{global, KeyValue};
