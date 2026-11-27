@@ -65,9 +65,9 @@ Log records are exported the same way with `LogExporter`; connect the `SdkLogger
 
 ```sh
 # Write every signal to stdout.
-cargo run --example basic
+cargo run -p opentelemetry-otlp-file --example basic
 # Append each signal to its own file in /tmp/otel.
-cargo run --example basic -- /tmp/otel
+cargo run -p opentelemetry-otlp-file --example basic -- /tmp/otel
 ```
 
 ## Destinations
